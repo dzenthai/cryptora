@@ -29,7 +29,7 @@ public class FetchService {
     }
 
     public void fetchNewQuotes() {
-        log.debug("FetchService | Fetching new quotes");
+        log.info("FetchService | Fetching new quotes");
         List<String> symbols = Ticker.getAllSymbols();
         symbols.forEach(symbol -> {
             log.debug("FetchService | Processing symbol: {}", symbol);

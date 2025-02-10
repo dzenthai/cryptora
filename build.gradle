@@ -29,7 +29,7 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.ta4j:ta4j-core:0.16'
+	implementation 'org.ta4j:ta4j-core:0.17'
 	implementation 'net.openhft.com.binance.api:binance-api-client:2.17.1'
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 	implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'

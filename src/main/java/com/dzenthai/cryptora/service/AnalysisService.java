@@ -1,5 +1,6 @@
 package com.dzenthai.cryptora.service;
 
+import com.dzenthai.cryptora.model.dto.Analysis;
 import com.dzenthai.cryptora.model.entity.Quote;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,56 +21,68 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 
 @Slf4j
 @Service
-public class AnalyticService {
+public class AnalysisService {
 
-    @Value("${cryptora.short.time.period}")
-    private Integer shortTimePeriod;
+    private final Integer shortTimePeriod;
 
-    @Value("${cryptora.long.time.period}")
-    private Integer longTimePeriod;
+    private final Integer longTimePeriod;
 
-    @Value("${cryptora.atr.period}")
-    private Integer atrPeriod;
+    private final Integer atrPeriod;
 
-    @Value("${cryptora.atr.multiplier}")
-    private Double atrMultiplier;
+    private final Double atrMultiplier;
 
     private final QuoteService quoteService;
 
-    public AnalyticService(QuoteService quoteService) {
+    public AnalysisService(
+            @Value("${cryptora.short.time.period}") Integer shortTimePeriod,
+            @Value("${cryptora.long.time.period}") Integer longTimePeriod,
+            @Value("${cryptora.atr.period}") Integer atrPeriod,
+            @Value("${cryptora.atr.multiplier}") Double atrMultiplier,
+            QuoteService quoteService
+    ) {
+        this.shortTimePeriod = shortTimePeriod;
+        this.longTimePeriod = longTimePeriod;
+        this.atrPeriod = atrPeriod;
+        this.atrMultiplier = atrMultiplier;
         this.quoteService = quoteService;
     }
 
-    public void analyzeAndGenerateSignals() {
-        log.info("AnalyticService | Analysis started at {}", LocalDateTime.now());
-        var quotesByTicker = groupQuotesByTicker();
-        quotesByTicker.forEach(this::analyzeTickerQuotes);
+    public Analysis getAnalysis(String ticker) {
+        return analyzeTickerQuotes(ticker, quoteService.getQuotesByTicker(ticker), false);
     }
 
-    private Map<String, List<Quote>> groupQuotesByTicker() {
-        return quoteService.getAllQuotes().stream()
-                .collect(Collectors.groupingBy(Quote::getTicker));
+    public void getAnalysis() {
+        quoteService.getAllQuotes().stream()
+                .collect(Collectors.groupingBy(Quote::getTicker))
+                .forEach((ticker, quotes) ->
+                        analyzeTickerQuotes(ticker, quotes, true));
     }
 
-    private void analyzeTickerQuotes(String ticker, List<Quote> quotes) {
+    private Analysis analyzeTickerQuotes(String ticker, List<Quote> quotes, boolean shouldLog) {
         var shortCut = ticker.replaceAll("USDT", "");
         quotes.sort(Comparator.comparing(Quote::getDatetime));
 
         var series = buildBarSeries(quotes);
         if (series.getBarCount() < shortTimePeriod) {
-            log.warn("AnalyticService | {}: Insufficient data for SMA calculation. Skipping...", shortCut);
-            return;
+            var warn = "Insufficient data for SMA calculation";
+            if (shouldLog) {
+                log.info("AnalysisService | Quote: {}, Action: {}",
+                        ticker, warn);
+            }
+            return Analysis.builder()
+                    .ticker(ticker)
+                    .action(warn)
+                    .build();
         }
-        evaluateSignals(series, shortCut);
+        return evaluateSignals(series, shortCut, shouldLog);
     }
 
-    private void evaluateSignals(BarSeries series, String shortCut) {
+    private Analysis evaluateSignals(BarSeries series, String ticker, boolean shouldLog) {
         SMAIndicator shortTermSMA = new SMAIndicator(new ClosePriceIndicator(series), shortTimePeriod);
         SMAIndicator longTermSMA = new SMAIndicator(new ClosePriceIndicator(series), longTimePeriod);
 
@@ -78,7 +91,7 @@ public class AnalyticService {
         Num longTermValue = longTermSMA.getValue(series.getEndIndex());
 
         var thresholds = calculateThresholds(series, longTermValue);
-        sendSignalMessage(latestPrice, shortTermValue, thresholds[0], thresholds[1], shortCut);
+        return sendSignalMessage(latestPrice, shortTermValue, thresholds[0], thresholds[1], ticker, shouldLog);
     }
 
     private Num[] calculateThresholds(BarSeries series, Num longTermValue) {
@@ -91,18 +104,33 @@ public class AnalyticService {
         return new Num[]{thresholdUpper, thresholdLower};
     }
 
-    private void sendSignalMessage(Num latestPrice, Num shortTermValue, Num thresholdUpper, Num thresholdLower, String shortCut) {
+    private Analysis sendSignalMessage(
+            Num latestPrice,
+            Num shortTermValue,
+            Num thresholdUpper,
+            Num thresholdLower,
+            String ticker,
+            boolean shouldLog
+    ) {
         if (shortTermValue.isGreaterThan(thresholdUpper) && latestPrice.isGreaterThan(shortTermValue)) {
-            sendSignals("Buy", shortCut);
+            return sendSignals("BUY", ticker, shouldLog);
         } else if (shortTermValue.isLessThan(thresholdLower) && latestPrice.isLessThan(shortTermValue)) {
-            sendSignals("Sell", shortCut);
+            return sendSignals("SELL", ticker, shouldLog);
         } else {
-            sendSignals("Hold", shortCut);
+            return sendSignals("HOLD", ticker, shouldLog);
         }
     }
 
-    private void sendSignals(String action, String shortCut) {
-        log.info("AnalyticService | {}: {}", shortCut, action.toUpperCase());
+    private Analysis sendSignals(String action, String ticker, boolean shouldLog) {
+        if (shouldLog) {
+            var now = LocalDateTime.now();
+            log.info("AnalysisService | Quote: {}, Action: {}, Datetime: {}",
+                    ticker, action, now);
+        }
+        return Analysis.builder()
+                .ticker(ticker)
+                .action(action)
+                .build();
     }
 
     private BarSeries buildBarSeries(List<Quote> quotes) {
@@ -113,7 +141,7 @@ public class AnalyticService {
         for (Quote quote : quotes) {
             ZonedDateTime endTime = quote.getDatetime().atZone(ZoneOffset.UTC);
             if (lastBarEndTime != null && !endTime.isAfter(lastBarEndTime)) {
-                log.warn("AnalyticService | Bar with end time {} skipped; not later than previous {}",
+                log.warn("AnalysisService | Bar with end time {} skipped; not later than previous {}",
                         endTime, lastBarEndTime);
                 continue;
             }

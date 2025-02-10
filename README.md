@@ -73,7 +73,7 @@ the recommended actions is to sell BTC and hold ETC and TON.
 
 ### **Generation of recommendations**
 
-By visiting ```http://localhost:8088/api/v1/report/BTC```, We can view a report of the current price of BTC
+By visiting ```http://localhost:8088/api/v1/cryptora/report/BTC```, We can view a report of the current price of BTC
 cryptocurrency, along with recommendations.
 
 <img src="./assets/Ollama-example.png" alt="">

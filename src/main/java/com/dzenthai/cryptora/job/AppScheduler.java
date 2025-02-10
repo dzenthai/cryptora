@@ -1,7 +1,7 @@
 package com.dzenthai.cryptora.job;
 
 import com.binance.api.client.exception.BinanceApiException;
-import com.dzenthai.cryptora.service.AnalyticService;
+import com.dzenthai.cryptora.service.AnalysisService;
 import com.dzenthai.cryptora.service.FetchService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -17,12 +17,12 @@ import java.util.concurrent.CompletableFuture;
 @EnableScheduling
 public class AppScheduler {
 
-    private final AnalyticService analyticService;
+    private final AnalysisService analysisService;
 
     private final FetchService fetchService;
 
-    public AppScheduler(AnalyticService analyticService, FetchService fetchService) {
-        this.analyticService = analyticService;
+    public AppScheduler(AnalysisService analysisService, FetchService fetchService) {
+        this.analysisService = analysisService;
         this.fetchService = fetchService;
     }
 
@@ -34,7 +34,7 @@ public class AppScheduler {
 
     @Async
     public CompletableFuture<Void> analyzeAndGenerateSignalsAsync() {
-        analyticService.analyzeAndGenerateSignals();
+        analysisService.getAnalysis();
         return CompletableFuture.completedFuture(null);
     }
 
