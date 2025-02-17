@@ -15,10 +15,8 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -71,8 +69,8 @@ public class AnalysisService {
         if (series.getBarCount() < shortTimePeriod) {
             var warn = "Insufficient data for SMA calculation";
             if (shouldLog) {
-                log.info("AnalysisService | Quote: {}, Action: {}",
-                        ticker, warn);
+                log.warn("AnalysisService | Quote: {}/USDT, Action: {}",
+                        shortCut, warn);
             }
             return Analysis.builder()
                     .ticker(ticker)
@@ -123,9 +121,10 @@ public class AnalysisService {
 
     private Analysis sendSignals(String action, String ticker, boolean shouldLog) {
         if (shouldLog) {
-            var now = LocalDateTime.now();
-            log.info("AnalysisService | Quote: {}, Action: {}, Datetime: {}",
-                    ticker, action, now);
+            var datetime = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                    .format(Instant.now().atZone(ZoneOffset.UTC));
+            log.info("AnalysisService | Quote: {}/USDT, Action: {}, Datetime: {}",
+                    ticker, action, datetime);
         }
         return Analysis.builder()
                 .ticker(ticker)

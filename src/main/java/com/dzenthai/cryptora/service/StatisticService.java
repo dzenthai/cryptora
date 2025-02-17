@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Function;
 
@@ -53,10 +52,13 @@ public class StatisticService {
                         .build())
                 .info(Info.builder()
                         .quoteEntriesCount(quotes.size())
-                        .currentDateTime(LocalDateTime.now())
+                        .currentDateTime(quotes.stream()
+                                .map(Quote::getDatetime)
+                                .toList().getLast())
                         .initDateTime(quotes.stream()
                                 .map(Quote::getDatetime)
-                                .findFirst())
+                                .toList().getFirst()
+                        )
                         .build())
                 .build();
     }

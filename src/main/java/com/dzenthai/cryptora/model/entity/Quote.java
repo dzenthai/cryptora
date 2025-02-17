@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 
 @Data
@@ -42,5 +42,5 @@ public class Quote {
     private BigDecimal amount;
 
     @Field(name = "datetime")
-    private LocalDateTime datetime;
+    private Instant datetime;
 }

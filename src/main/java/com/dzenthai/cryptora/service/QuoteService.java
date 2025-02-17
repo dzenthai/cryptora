@@ -3,13 +3,12 @@ package com.dzenthai.cryptora.service;
 import com.binance.api.client.domain.market.Candlestick;
 import com.binance.api.client.domain.market.TickerPrice;
 import com.dzenthai.cryptora.model.entity.Quote;
-import com.dzenthai.cryptora.repository.QuoteRepo;
+import com.dzenthai.cryptora.repository.QuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,20 +17,20 @@ import java.util.stream.Collectors;
 @Service
 public class QuoteService {
 
-    private final QuoteRepo quoteRepo;
+    private final QuoteRepository quoteRepository;
 
-    public QuoteService(QuoteRepo quoteRepo) {
-        this.quoteRepo = quoteRepo;
+    public QuoteService(QuoteRepository quoteRepository) {
+        this.quoteRepository = quoteRepository;
     }
 
     public List<Quote> getAllQuotes() {
         log.debug("QuoteService | Receiving all quotes");
-        return quoteRepo.findAll();
+        return quoteRepository.findAll();
     }
 
     public List<Quote> getQuotesByTicker(String ticker) {
         log.debug("QuoteService | Receiving all quotes by ticker: {}", ticker);
-        return quoteRepo.findAll()
+        return quoteRepository.findAll()
                 .stream()
                 .filter(quote -> quote.getTicker().equals(ticker.concat("USDT")))
                 .collect(Collectors.toList());
@@ -48,7 +47,7 @@ public class QuoteService {
 
     private Quote save(Quote quote) {
         log.debug("QuoteService | Quote successfully saved, quote: {}", quote);
-        return quoteRepo.save(quote);
+        return quoteRepository.save(quote);
     }
 
     private Quote buildQuote(TickerPrice tickerPrice, Candlestick candlestick) {
@@ -61,7 +60,7 @@ public class QuoteService {
                 .closePrice(BigDecimal.valueOf(Double.parseDouble(candlestick.getClose())))
                 .volume(BigDecimal.valueOf(Double.parseDouble(candlestick.getVolume())))
                 .amount(BigDecimal.valueOf(Double.parseDouble(candlestick.getQuoteAssetVolume())))
-                .datetime(LocalDateTime.now(ZoneOffset.UTC))
+                .datetime(Instant.now())
                 .build();
     }
 }
