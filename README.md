@@ -7,10 +7,11 @@
 
 ## **Description**
 
-**Cryptora** is a professional-grade Spring Boot application that performs real-time technical analysis of
-cryptocurrency markets using data from the Binance API. The service employs advanced technical indicators including
-Simple/Exponential Moving Averages (SMA/EMA), Relative Strength Index (RSI), and Average True Range (ATR) to generate
-actionable trading signals with comprehensive market state assessment.
+**Cryptora** is a Spring Boot application that performs real-time technical analysis of cryptocurrency markets using
+data from the Binance API. The service employs advanced technical indicators including Simple/Exponential Moving
+Averages (SMA/EMA), Relative Strength Index (RSI), and Average True Range (ATR) to generate actionable trading signals
+with comprehensive market state assessment.
+
 ---
 
 ## **Disclaimer**
@@ -129,6 +130,7 @@ GET http://localhost:8088/api/v1/report/ticker={ticker}&interval={interval}
 <img src="./assets/response-example.png" alt="">
 
 **Response includes**:
+
 - **Analysis**: Current trading signal with market assessment
 - **Current**: Latest OHLCV data and trade count
 - **Average**: Mean values for price, volume, and trade price (VWAP-like)
@@ -145,6 +147,7 @@ After successfully retrieving data from the Binance API, all cryptocurrency info
 In the example above:
 
 **Fields**:
+
 - **ticker**: Trading pair symbol (e.g., BTCUSDT)
 - **openTime/closeTime**: Bar start/end timestamps (ISO 8601)
 - **openPrice/closePrice**: Opening/closing prices
@@ -161,7 +164,7 @@ In the example above:
 ### **Prerequisites**
 
 - Java 23
-- Gradle 8.10.2
+- Gradle 8.14
 - Docker 29.1.3
 
 ### **Installation and Startup Steps**
@@ -217,6 +220,7 @@ cryptora:
 ```
 
 **Recommended Settings for 1-minute Timeframe**:
+
 - Shorter periods (5/15) for faster reaction to crypto volatility
 - RSI period of 9 instead of standard 14 for quicker momentum detection
 - ATR multiplier of 1.5 optimized for cryptocurrency volatility patterns
@@ -242,6 +246,7 @@ public enum Ticker {
 Modify scheduler frequency in `job/AppScheduler.java`:
 
 ```java
+
 @Scheduled(fixedRate = 60000) // 60000ms = 1 minute
 public void executeInSequence() {
     // Fetch and analyze data
@@ -256,11 +261,11 @@ Adjust initial data fetch size in `service/FetchService.java`:
 
 ```java
 ApiResponse<KlinesResponse> klinesResponse = spotRestApi.klines(
-    symbol,
-    Interval.INTERVAL_1m,
-    null,
-    null,
-    "+0",
-    500  // Number of historical candles (max: 1000)
+        symbol,
+        Interval.INTERVAL_1m,
+        null,
+        null,
+        "+0",
+        500  // Number of historical candles (max: 1000)
 );
 ```
