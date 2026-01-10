@@ -9,32 +9,24 @@ spring:
 
   data:
     mongodb:
-      host: mongo
+      host: host.docker.internal
       port: 27017
       database: binance
-
-  ai:
-    ollama:
-      base-url: http://ollama:11434
-      init:
-        pull-model-strategy: when_missing
-      chat:
-        model: qwen2.5:1.5b
-        options:
-          temperature: 0.6
-          max-tokens: 200
-          top-p: 0.9
 
 cryptora:
   short:
     time:
-      period: 50
+      period: 5
   long:
     time:
-      period: 200
+      period: 15
   atr:
     period: 14
-    multiplier: 2.0
+    multiplier: 1.5
+  rsi:
+    period: 9
+    overbought: 65
+    oversold: 35
 
 server:
   port: 8088

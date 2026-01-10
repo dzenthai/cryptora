@@ -6,13 +6,6 @@ services:
     ports:
       - '27017:27017'
 
-  ollama:
-    container_name: ollama
-    image: ollama/ollama:latest
-    restart: on-failure
-    ports:
-      - '11434:11434'
-
   app:
     container_name: cryptora
     build: .
@@ -22,4 +15,3 @@ services:
       - '8088:8088'
     depends_on:
       - mongo_db
-      - ollama

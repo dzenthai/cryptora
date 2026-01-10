@@ -8,7 +8,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 
 
 @Data
@@ -41,6 +43,15 @@ public class Quote {
     @Field(name = "amount")
     private BigDecimal amount;
 
-    @Field(name = "datetime")
-    private Instant datetime;
+    @Field(name = "trades")
+    private Long trades;
+
+    @Field(name = "openTime")
+    private Instant openTime;
+
+    @Field(name = "closeTime")
+    private Instant closeTime;
+
+    @Field(name = "timePeriod")
+    private Duration timePeriod;
 }

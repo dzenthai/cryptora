@@ -11,21 +11,16 @@ public class ReportService {
 
     private final StatisticService statisticService;
 
-    private final OllamaService ollamaService;
-
     public ReportService(
-            StatisticService statisticService,
-            OllamaService ollamaService
+            StatisticService statisticService
     ) {
         this.statisticService = statisticService;
-        this.ollamaService = ollamaService;
     }
 
-    public Report getReport(String ticker) {
+    public Report getReport(String ticker, String interval) {
         log.debug("ReportService | Receiving report for {}", ticker);
         return Report.builder()
-                .statistic(statisticService.calculateStatisticReport(ticker))
-                .recommendation(ollamaService.generateAIResponse(ticker))
+                .statistic(statisticService.calculateStatisticReport(ticker, interval))
                 .build();
     }
 }

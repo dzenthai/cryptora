@@ -1,7 +1,9 @@
 package com.dzenthai.cryptora.configuration;
 
-import com.binance.api.client.BinanceApiClientFactory;
-import com.binance.api.client.BinanceApiRestClient;
+import com.binance.connector.client.common.configuration.ClientConfiguration;
+import com.binance.connector.client.common.configuration.SignatureConfiguration;
+import com.binance.connector.client.spot.rest.SpotRestApiUtil;
+import com.binance.connector.client.spot.rest.api.SpotRestApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,9 +19,12 @@ public class BinanceConfig {
     private String apiSecret;
 
     @Bean
-    public BinanceApiRestClient binanceApiRestClient() {
-        return BinanceApiClientFactory
-                .newInstance(apiKey, apiSecret)
-                .newRestClient();
+    public SpotRestApi clientConfiguration() {
+        ClientConfiguration clientConfiguration = SpotRestApiUtil.getClientConfiguration();
+        SignatureConfiguration signatureConfiguration = new SignatureConfiguration();
+        signatureConfiguration.setApiKey(apiKey);
+        signatureConfiguration.setSecretKey(apiSecret);
+        clientConfiguration.setSignatureConfiguration(signatureConfiguration);
+        return new SpotRestApi(clientConfiguration);
     }
 }

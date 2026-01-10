@@ -1,6 +1,5 @@
 package com.dzenthai.cryptora.job;
 
-import com.binance.api.client.exception.BinanceApiException;
 import com.dzenthai.cryptora.service.AnalysisService;
 import com.dzenthai.cryptora.service.FetchService;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,7 @@ public class AppScheduler {
         return CompletableFuture.completedFuture(null);
     }
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(fixedRate = 60000)
     public void executeInSequence() {
         fetchNewQuotesAsync()
                 .thenCompose(_ -> analyzeAndGenerateSignalsAsync())
@@ -47,7 +46,7 @@ public class AppScheduler {
 
                     retryFetchNewQuotes(1);
 
-                    throw new BinanceApiException("Application Scheduler | Critical error executing tasks", ex);
+                    throw new RuntimeException("Application Scheduler | Critical error executing tasks", ex);
                 });
     }
 

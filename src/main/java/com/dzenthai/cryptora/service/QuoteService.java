@@ -1,16 +1,16 @@
 package com.dzenthai.cryptora.service;
 
-import com.binance.api.client.domain.market.Candlestick;
-import com.binance.api.client.domain.market.TickerPrice;
+import com.binance.connector.client.spot.rest.model.KlinesItem;
+import com.binance.connector.client.spot.rest.model.KlinesResponse;
 import com.dzenthai.cryptora.model.entity.Quote;
 import com.dzenthai.cryptora.repository.QuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -28,39 +28,55 @@ public class QuoteService {
         return quoteRepository.findAll();
     }
 
+    public void addAllQuotes(String ticker, KlinesResponse klinesResponse) {
+        if (klinesResponse == null || klinesResponse.isEmpty()) return;
+
+        String fullTicker = ticker.endsWith("USDT") ? ticker : ticker + "USDT";
+        int count = 0;
+
+        for (KlinesItem item : klinesResponse) {
+            long closeTime = Long.parseLong(item.get(6));
+            Instant closeInstant = Instant.ofEpochMilli(closeTime);
+
+            if (!quoteRepository.existsByTickerAndCloseTime(fullTicker, closeInstant)) {
+                Quote quote = buildQuote(fullTicker, item);
+                quoteRepository.save(quote);
+                count++;
+            }
+        }
+        if (count > 0) {
+            log.info("QuoteService | Saved {} new bars for {}", count, fullTicker);
+        }
+    }
+
     public List<Quote> getQuotesByTicker(String ticker) {
-        log.debug("QuoteService | Receiving all quotes by ticker: {}", ticker);
-        return quoteRepository.findAll()
-                .stream()
-                .filter(quote -> quote.getTicker().equals(ticker.concat("USDT")))
-                .collect(Collectors.toList());
+        String searchTicker = ticker.endsWith("USDT") ? ticker : ticker + "USDT";
+        log.debug("QuoteService | Receiving quotes for: {}", searchTicker);
+        return quoteRepository.findAll().stream()
+                .filter(quote ->
+                        quote.getTicker().equalsIgnoreCase(searchTicker))
+                .toList();
     }
 
-    public Quote addNewQuote(TickerPrice tickerPrice, List<Candlestick> candlesticks) {
-        var candlestick = candlesticks.getLast();
-        var quote = buildQuote(tickerPrice, candlestick);
+    private Quote buildQuote(String ticker, KlinesItem kline) {
+        long openTime = Long.parseLong(kline.get(0));
+        long closeTime = Long.parseLong(kline.get(6));
 
-        log.debug("QuoteService | Adding new quote with ticker: {}, quote: {}, datetime: {}",
-                tickerPrice, quote, quote.getDatetime());
-        return save(quote);
-    }
+        Instant beginTime = Instant.ofEpochMilli(openTime);
+        Instant endTime = Instant.ofEpochMilli(closeTime);
 
-    private Quote save(Quote quote) {
-        log.debug("QuoteService | Quote successfully saved, quote: {}", quote);
-        return quoteRepository.save(quote);
-    }
-
-    private Quote buildQuote(TickerPrice tickerPrice, Candlestick candlestick) {
-        log.debug("QuoteService | Building new quote, ticker: {}, candlestick: {}", tickerPrice, candlestick);
         return Quote.builder()
-                .ticker(tickerPrice.getSymbol())
-                .openPrice(BigDecimal.valueOf(Double.parseDouble(candlestick.getOpen())))
-                .highPrice(BigDecimal.valueOf(Double.parseDouble(candlestick.getHigh())))
-                .lowPrice(BigDecimal.valueOf(Double.parseDouble(candlestick.getLow())))
-                .closePrice(BigDecimal.valueOf(Double.parseDouble(candlestick.getClose())))
-                .volume(BigDecimal.valueOf(Double.parseDouble(candlestick.getVolume())))
-                .amount(BigDecimal.valueOf(Double.parseDouble(candlestick.getQuoteAssetVolume())))
-                .datetime(Instant.now())
+                .ticker(ticker)
+                .openTime(beginTime)
+                .closeTime(endTime)
+                .openPrice(new BigDecimal(kline.get(1)))
+                .highPrice(new BigDecimal(kline.get(2)))
+                .lowPrice(new BigDecimal(kline.get(3)))
+                .closePrice(new BigDecimal(kline.get(4)))
+                .volume(new BigDecimal(kline.get(5)))
+                .amount(new BigDecimal(kline.get(7)))
+                .trades(Long.parseLong(kline.get(8)))
+                .timePeriod(Duration.between(beginTime, endTime))
                 .build();
     }
 }

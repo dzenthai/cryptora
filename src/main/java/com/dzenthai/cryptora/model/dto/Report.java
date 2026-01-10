@@ -7,8 +7,6 @@ import lombok.Builder;
 @Builder
 public record Report(
         @JsonProperty("statistic")
-        Statistic statistic,
-        @JsonProperty("recommendation")
-        String recommendation
+        Statistic statistic
 )
 {}

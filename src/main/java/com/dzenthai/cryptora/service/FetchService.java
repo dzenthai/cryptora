@@ -1,10 +1,9 @@
 package com.dzenthai.cryptora.service;
 
-import com.binance.api.client.BinanceApiRestClient;
-import com.binance.api.client.domain.market.Candlestick;
-import com.binance.api.client.domain.market.CandlestickInterval;
-import com.binance.api.client.domain.market.TickerPrice;
-import com.binance.api.client.exception.BinanceApiException;
+import com.binance.connector.client.common.ApiResponse;
+import com.binance.connector.client.spot.rest.api.SpotRestApi;
+import com.binance.connector.client.spot.rest.model.Interval;
+import com.binance.connector.client.spot.rest.model.KlinesResponse;
 import com.dzenthai.cryptora.model.enums.Ticker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,49 +17,40 @@ public class FetchService {
 
     private final QuoteService quoteService;
 
-    private final BinanceApiRestClient binanceApiRestClient;
+    private final SpotRestApi spotRestApi;
 
     public FetchService(
             QuoteService quoteService,
-            BinanceApiRestClient binanceApiRestClient
-    ) {
+            SpotRestApi spotRestApi
+            ) {
         this.quoteService = quoteService;
-        this.binanceApiRestClient = binanceApiRestClient;
+        this.spotRestApi = spotRestApi;
     }
 
     public void fetchNewQuotes() {
         log.info("FetchService | Fetching new quotes");
         List<String> symbols = Ticker.getAllSymbols();
+
         symbols.forEach(symbol -> {
             log.debug("FetchService | Processing symbol: {}", symbol);
             try {
-                TickerPrice tickerPrice = fetchTickerPrice(symbol);
-                List<Candlestick> candlesticks = fetchCandlestickBars(symbol);
 
-                var quote = quoteService.addNewQuote(tickerPrice, candlesticks);
-                log.debug("FetchService | Quote successfully saved, quote: {}", quote);
+                ApiResponse<KlinesResponse> klinesResponse = spotRestApi.klines(
+                        symbol,
+                        Interval.INTERVAL_1m,
+                        null,
+                        null,
+                        "+0",
+                        500
+                );
 
-            } catch (BinanceApiException e) {
-                log.error("FetchService | Binance API error while fetching, symbol: {}, exception: ", symbol, e);
+                KlinesResponse klines = klinesResponse.getData();
+                quoteService.addAllQuotes(symbol, klines);
+                log.debug("FetchService | Quote successfully saved");
+
             } catch (Exception e) {
-                log.error("FetchService | Unexpected error while fetching, symbol: {}, exception: ", symbol, e);
+                log.error("FetchService | Error while fetching symbol: {}", symbol, e);
             }
         });
-    }
-
-    private TickerPrice fetchTickerPrice(String symbol) {
-        TickerPrice tickerPrice = binanceApiRestClient.getPrice(symbol);
-        if (tickerPrice == null) {
-            log.warn("FetchService | Ticker Price is null for symbol: {}", symbol);
-        }
-        return tickerPrice;
-    }
-
-    private List<Candlestick> fetchCandlestickBars(String symbol) {
-        List<Candlestick> candlesticks = binanceApiRestClient.getCandlestickBars(symbol, CandlestickInterval.ONE_MINUTE);
-        if (candlesticks == null || candlesticks.isEmpty()) {
-            log.warn("FetchService | Candlesticks are empty for symbol: {}", symbol);
-        }
-        return candlesticks;
     }
 }
