@@ -286,9 +286,7 @@ public class AnalysisService {
             var timestamp = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ssZ")
                     .format(Instant.now().atZone(ZoneOffset.UTC));
             log.info("AnalysisService | Ticker: {}/USDT, Action: {}, Market state: {}, Volatility: {}, Trend: {}, Liquidity: {}, Risk level: {}, Confidence score: {}%, Timestamp: {}",
-                    ticker, action, marketState,
-                    volatility, trendStrength, liquidity,
-                    riskLevel, confidenceScore, timestamp);
+                    ticker, action, marketState, volatility, trendStrength, liquidity, riskLevel, confidenceScore, timestamp);
         }
 
         return Analysis.builder()
