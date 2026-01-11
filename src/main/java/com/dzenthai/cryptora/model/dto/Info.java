@@ -9,8 +9,8 @@ import java.time.Instant;
 
 @Builder
 public record Info(
-        @JsonProperty("quote_entries_count")
-        Integer quoteEntriesCount,
+        @JsonProperty("entries_count")
+        Integer entriesCount,
         @JsonProperty("begin_time")
         Instant beginTime,
         @JsonProperty("end_time")

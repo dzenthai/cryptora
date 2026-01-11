@@ -9,7 +9,7 @@
 
 **Cryptora** is a Spring Boot application that performs real-time technical analysis of cryptocurrency markets using
 data from the Binance API. The service employs advanced technical indicators including Simple/Exponential Moving
-Averages (SMA/EMA), Relative Strength Index (RSI), and Average True Range (ATR) to generate actionable trading signals
+Averages (SMA), Relative Strength Index (RSI), and Average True Range (ATR) to generate actionable trading signals
 with comprehensive market state assessment.
 
 ---
@@ -34,7 +34,7 @@ these risks.
   analysis capabilities.
 
 - **Advanced Technical Analysis**: Utilizes Ta4j library for professional-grade technical indicators:
-    - **Moving Averages**: Configurable SMA/EMA periods for trend detection and crossover signals
+    - **Moving Averages**: Configurable SMA periods for trend detection and crossover signals
     - **RSI (Relative Strength Index)**: Momentum oscillator with customizable overbought/oversold thresholds
     - **ATR (Average True Range)**: Volatility measurement with adaptive multipliers for dynamic threshold calculation
 
@@ -61,7 +61,7 @@ these risks.
 
 - **Spring Boot**: Framework used for building the service.
 
-- **MongoDB**: A NoSQL database used for storing real-time cryptocurrency quotes.
+- **MongoDB**: A NoSQL database used for storing real-time cryptocurrency candles.
 
 - **Docker**: Containerization platform that helps package the application with its dependencies, ensuring consistent
   environments and simplifying deployment.
@@ -72,7 +72,7 @@ these risks.
 
 - **Spring Boot Starter Web 3.4.0**: RESTful web services framework with embedded Tomcat server for API endpoints
 
-- **Ta4j 0.22.0**: Professional technical analysis library providing battle-tested indicators (SMA, EMA, RSI, ATR) and
+- **Ta4j 0.22.0**: Professional technical analysis library providing battle-tested indicators (SMA, RSI, ATR) and
   strategy framework
 
 - **Binance Spot Connector 2.0.0**: Official Binance API client for accessing real-time market data and candlestick
@@ -136,7 +136,7 @@ GET http://localhost:8088/api/v1/report/ticker={ticker}&interval={interval}
 - **Average**: Mean values for price, volume, and trade price (VWAP-like)
 - **Max/Min**: Extremum values within the interval
 - **Total**: Cumulative volume and amount
-- **Info**: Metadata including quote count, time range, and interval duration
+- **Info**: Metadata including candle count, time range, and interval duration
 
 ### **Storing cryptocurrency data in a MongoDB**
 
@@ -148,7 +148,7 @@ In the example above:
 
 **Fields**:
 
-- **ticker**: Trading pair symbol (e.g., BTCUSDT)
+- **symbol**: Trading pair symbol (e.g., BTCUSDT)
 - **openTime/closeTime**: Bar start/end timestamps (ISO 8601)
 - **openPrice/closePrice**: Opening/closing prices
 - **highPrice/lowPrice**: High/low prices during the period
@@ -228,10 +228,10 @@ cryptora:
 
 ### **Adding New Cryptocurrencies**
 
-Update the `Ticker` enum in `model/enums/Ticker.java`:
+Update the `Asset` enum in `model/enums/Asset.java`:
 
 ```java
-public enum Ticker {
+public enum Asset {
     BTC,
     ETH,
     TON,
@@ -239,7 +239,8 @@ public enum Ticker {
 }
 ```
 
-**Note**: All tickers are automatically suffixed with "USDT" to form trading pairs.
+**Note**: All tickers are automatically suffixed with "USDT" to form trading pairs (symbols).
+
 
 ### **Adjusting Fetch Interval**
 

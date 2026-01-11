@@ -27,7 +27,7 @@ public class AppScheduler {
 
     @Async
     public CompletableFuture<Void> fetchNewQuotesAsync() {
-        fetchService.fetchNewQuotes();
+        fetchService.fetchNewCandles();
         return CompletableFuture.completedFuture(null);
     }
 
@@ -54,7 +54,7 @@ public class AppScheduler {
         try {
             int delay = (int) Math.pow(2, retryCount) * 1000;
             Thread.sleep(delay);
-            fetchService.fetchNewQuotes();
+            fetchService.fetchNewCandles();
         } catch (Exception e) {
             log.error("AppScheduler | Error during retry attempt {}, exception: ", retryCount, e);
             if (retryCount < 5) {

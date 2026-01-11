@@ -10,20 +10,19 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 
 
 @Data
 @Builder
-@Document(collection = "quotes")
-public class Quote {
+@Document(collection = "candles")
+public class Candle {
 
     @Id
     private String id;
 
-    @Indexed(unique = true)
-    @Field(name = "ticker")
-    private String ticker;
+    @Indexed
+    @Field(name = "symbol")
+    private String symbol;
 
     @Field(name = "open_price")
     private BigDecimal openPrice;

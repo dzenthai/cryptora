@@ -6,8 +6,8 @@ import lombok.Builder;
 
 @Builder
 public record Analysis(
-        @JsonProperty("ticker")
-        String ticker,
+        @JsonProperty("symbol")
+        String symbol,
         @JsonProperty("action")
         String action,
         @JsonProperty("market_state")

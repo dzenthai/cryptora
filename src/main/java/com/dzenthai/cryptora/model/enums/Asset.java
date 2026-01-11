@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 
-public enum Ticker {
+public enum Asset {
 
     /**
      * Indicates the option to incorporate additional cryptocurrencies.
@@ -19,8 +19,8 @@ public enum Ticker {
     }
 
     public static List<String> getAllSymbols() {
-        return Stream.of(Ticker.values())
-                .map(Ticker::getSymbol)
+        return Stream.of(Asset.values())
+                .map(Asset::getSymbol)
                 .toList();
     }
 }

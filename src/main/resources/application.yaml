@@ -5,7 +5,7 @@ binance:
 
 spring:
   application:
-    name: cryptora-analyze-service
+    name: cryptora
 
   data:
     mongodb:

@@ -4,7 +4,7 @@ import com.binance.connector.client.common.ApiResponse;
 import com.binance.connector.client.spot.rest.api.SpotRestApi;
 import com.binance.connector.client.spot.rest.model.Interval;
 import com.binance.connector.client.spot.rest.model.KlinesResponse;
-import com.dzenthai.cryptora.model.enums.Ticker;
+import com.dzenthai.cryptora.model.enums.Asset;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -15,21 +15,21 @@ import java.util.List;
 @Service
 public class FetchService {
 
-    private final QuoteService quoteService;
+    private final CandleService candleService;
 
     private final SpotRestApi spotRestApi;
 
     public FetchService(
-            QuoteService quoteService,
+            CandleService candleService,
             SpotRestApi spotRestApi
             ) {
-        this.quoteService = quoteService;
+        this.candleService = candleService;
         this.spotRestApi = spotRestApi;
     }
 
-    public void fetchNewQuotes() {
-        log.info("FetchService | Fetching new quotes");
-        List<String> symbols = Ticker.getAllSymbols();
+    public void fetchNewCandles() {
+        log.debug("FetchService | Fetching new candles");
+        List<String> symbols = Asset.getAllSymbols();
 
         symbols.forEach(symbol -> {
             log.debug("FetchService | Processing symbol: {}", symbol);
@@ -45,8 +45,8 @@ public class FetchService {
                 );
 
                 KlinesResponse klines = klinesResponse.getData();
-                quoteService.addAllQuotes(symbol, klines);
-                log.debug("FetchService | Quote successfully saved");
+                candleService.saveAllCandles(symbol, klines);
+                log.debug("FetchService | Candle successfully saved");
 
             } catch (Exception e) {
                 log.error("FetchService | Error while fetching symbol: {}", symbol, e);
