@@ -26,7 +26,7 @@ public class AppScheduler {
     }
 
     @Async
-    public CompletableFuture<Void> fetchNewQuotesAsync() {
+    public CompletableFuture<Void> fetchNewCandlesAsync() {
         fetchService.fetchNewCandles();
         return CompletableFuture.completedFuture(null);
     }
@@ -39,7 +39,7 @@ public class AppScheduler {
 
     @Scheduled(fixedRate = 60000)
     public void executeInSequence() {
-        fetchNewQuotesAsync()
+        fetchNewCandlesAsync()
                 .thenCompose(_ -> analyzeAndGenerateSignalsAsync())
                 .exceptionally(ex -> {
                     log.error("Application Scheduler | Error executing operations: {}", ex.getMessage(), ex);
