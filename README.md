@@ -7,10 +7,10 @@
 
 ## **Description**
 
-**Cryptora** is a Spring Boot application that performs real-time technical analysis of cryptocurrency markets using
-data from the Binance API. The service employs advanced technical indicators including Simple/Exponential Moving
-Averages (SMA), Relative Strength Index (RSI), and Average True Range (ATR) to generate actionable trading signals
-with comprehensive market state assessment.
+**Cryptora** is a Spring Boot–based service for real-time technical analysis of cryptocurrency markets using n-minute
+candlestick data from the Binance API. It combines SMA, RSI, and ATR indicators to assess current market conditions
+and generate interpretable, context-aware trading signals focused on describing the present market state rather than
+predicting future price movements.
 
 ---
 
@@ -30,22 +30,23 @@ these risks.
 - **Real-time Data Fetching**: Integrates with Binance API to retrieve live 1-minute candlestick data for multiple
   cryptocurrencies with automatic deduplication.
 
-- **Historical Data Storage**: MongoDB stores complete price history, enabling comprehensive backtesting and trend
-  analysis capabilities.
+- **Historical Data Storage**: MongoDB stores complete price history.
 
-- **Advanced Technical Analysis**: Utilizes Ta4j library for professional-grade technical indicators:
+- **Advanced Technical Analysis**: Utilizes Ta4j library for well-established technical indicators provided by Ta4j:
     - **Moving Averages**: Configurable SMA periods for trend detection and crossover signals
     - **RSI (Relative Strength Index)**: Momentum oscillator with customizable overbought/oversold thresholds
     - **ATR (Average True Range)**: Volatility measurement with adaptive multipliers for dynamic threshold calculation
 
 - **Multi-Dimensional Market Assessment**:
-    - **Trading Signals**: BUY, SELL, HOLD recommendations based on technical indicator confluence
-    - **Market State**: TRENDING, CONSOLIDATION, BREAKOUT_ATTEMPT classification
+    - **Trading Signals**: STRONG_BUY, BUY, SELL, STRONG_SELL, HOLD recommendations based on technical indicator
+      confluence
+    - **Market State**: TRENDING, BREAKOUT_ATTEMPT, CONSOLIDATION, RANGE classification
     - **Volatility Analysis**: LOW, MEDIUM, HIGH volatility categorization
     - **Trend Strength**: WEAK, MODERATE, STRONG trend evaluation
     - **Liquidity Assessment**: Volume-based liquidity scoring
     - **Risk Level**: Composite risk calculation (LOW, MEDIUM, HIGH)
-    - **Confidence Score**: 0-100% confidence rating for each signal
+    - **Confidence Score**: 0-100% confidence rating for each signal. Confidence Score is a heuristic metric derived
+      from indicator alignment, not a probabilistic forecast.
 
 - **Statistical Reports**: Detailed interval-based reports with current, average, min, max, and total metrics for
   comprehensive market overview.
@@ -133,7 +134,7 @@ GET http://localhost:8088/api/v1/report/ticker={ticker}&interval={interval}
 
 - **Analysis**: Current trading signal with market assessment
 - **Current**: Latest OHLCV data and trade count
-- **Average**: Mean values for price, volume, and trade price (VWAP-like)
+- **Average**: Average trade price (VWAP-like, derived from total amount / total volume)
 - **Max/Min**: Extremum values within the interval
 - **Total**: Cumulative volume and amount
 - **Info**: Metadata including candle count, time range, and interval duration
@@ -240,7 +241,6 @@ public enum Asset {
 ```
 
 **Note**: All tickers are automatically suffixed with "USDT" to form trading pairs (symbols).
-
 
 ### **Adjusting Fetch Interval**
 
