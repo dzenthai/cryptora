@@ -16,17 +16,19 @@ spring:
 cryptora:
   short:
     time:
-      period: 5
+      period: 9
   long:
     time:
-      period: 15
+      period: 21
   atr:
     period: 14
-    multiplier: 1.5
+    multiplier: 2.0
   rsi:
-    period: 9
-    overbought: 65
-    oversold: 35
+    period: 14
+    overbought: 70
+    oversold: 30
+  volume:
+    period: 20
 
 server:
   port: 8088

@@ -28,18 +28,18 @@ public class StatisticService {
         this.candleService = candleService;
     }
 
-    public Statistic calculateStatisticReport(String baseAsset, String interval) {
+    public Statistic calculateStatisticReport(String baseAsset, String duration) {
         log.debug("StatisticService | Calculating statistic, base asset: {}", baseAsset);
         List<Candle> candles = candleService.getCandleBySymbol(baseAsset);
         if (candles == null || candles.isEmpty()) {
-            log.warn("StatisticService | No candles found for baseAsset {}, interval {}",
-                    baseAsset, interval);
-            throw new NoSuchElementException("No data found for base asset %s, interval %s"
-                    .formatted(baseAsset, interval));
+            log.warn("StatisticService | No candles found, baseAsset: {}, duration: {}",
+                    baseAsset, duration);
+            throw new NoSuchElementException("No data found for base asset %s, duration %s"
+                    .formatted(baseAsset, duration));
         }
         try {
 
-            var beginTime = getBeginTime(candles, interval);
+            var beginTime = getBeginTime(candles, duration);
             var endTime = getEndTime(candles);
             var filteredCandles = candles.stream()
                     .filter(q -> !q.getCloseTime().isBefore(beginTime) && !q.getOpenTime().isAfter(endTime))
@@ -56,8 +56,8 @@ public class StatisticService {
                     .build();
 
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Invalid interval value: %s"
-                    .formatted(interval));
+            throw new NumberFormatException("Invalid duration value: %s"
+                    .formatted(duration));
         }
     }
 
@@ -164,7 +164,7 @@ public class StatisticService {
                 .entriesCount(candles.size())
                 .beginTime(beginTime)
                 .endTime(endTime)
-                .interval(Duration.between(beginTime, endTime))
+                .duration(Duration.between(beginTime, endTime))
                 .build();
     }
 
@@ -172,18 +172,18 @@ public class StatisticService {
         return candles.getLast().getCloseTime();
     }
 
-    private Instant getBeginTime(List<Candle> candles, String interval) {
+    private Instant getBeginTime(List<Candle> candles, String duration) {
         var endTime = getEndTime(candles);
 
-        long value = Long.parseLong(interval.substring(0, interval.length() - 1));
-        String unit = interval.substring(interval.length() - 1).toLowerCase();
+        long value = Long.parseLong(duration.substring(0, duration.length() - 1));
+        String unit = duration.substring(duration.length() - 1).toLowerCase();
 
         return switch (unit) {
             case "d" -> endTime.minus(value, ChronoUnit.DAYS);
             case "h" -> endTime.minus(value, ChronoUnit.HOURS);
             case "m" -> endTime.minus(value, ChronoUnit.MINUTES);
             case "s" -> endTime.minus(value, ChronoUnit.SECONDS);
-            default -> throw new IllegalArgumentException("Unknown interval unit: " + unit);
+            default -> throw new IllegalArgumentException("Unknown duration unit: " + unit);
         };
     }
 }

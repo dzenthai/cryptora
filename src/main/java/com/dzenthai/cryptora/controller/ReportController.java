@@ -21,12 +21,12 @@ public class ReportController {
         this.reportService = reportService;
     }
 
-    @GetMapping("/ticker={ticker}&interval={interval}")
+    @GetMapping("/asset={asset}&duration={duration}")
     public ResponseEntity<?> report(
-            @PathVariable String ticker,
-            @PathVariable String interval
+            @PathVariable String asset,
+            @PathVariable String duration
     ) {
-        return new ResponseEntity<>(reportService.getReport(ticker, interval),
+        return new ResponseEntity<>(reportService.getReport(asset, duration),
                 HttpStatus.OK);
     }
 }

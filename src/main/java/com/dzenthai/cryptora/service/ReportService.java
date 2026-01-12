@@ -17,10 +17,10 @@ public class ReportService {
         this.statisticService = statisticService;
     }
 
-    public Report getReport(String ticker, String interval) {
-        log.debug("ReportService | Receiving report for {}", ticker);
+    public Report getReport(String asset, String duration) {
+        log.debug("ReportService | Receiving report for {}", asset);
         return Report.builder()
-                .statistic(statisticService.calculateStatisticReport(ticker, interval))
+                .statistic(statisticService.calculateStatisticReport(asset, duration))
                 .build();
     }
 }

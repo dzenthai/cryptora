@@ -11,11 +11,11 @@ import java.time.Instant;
 public record Info(
         @JsonProperty("entries_count")
         Integer entriesCount,
-        @JsonProperty("begin_time")
+        @JsonProperty("beginTime")
         Instant beginTime,
-        @JsonProperty("end_time")
+        @JsonProperty("endTime")
         Instant endTime,
-        @JsonProperty("interval")
-        Duration interval
+        @JsonProperty("duration")
+        Duration duration
 ) {
 }
