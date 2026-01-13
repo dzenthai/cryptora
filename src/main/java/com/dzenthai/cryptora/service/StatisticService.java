@@ -32,17 +32,17 @@ public class StatisticService {
         log.debug("StatisticService | Calculating statistic, base asset: {}", baseAsset);
         List<Candle> candles = candleService.getCandleBySymbol(baseAsset);
         if (candles == null || candles.isEmpty()) {
-            log.warn("StatisticService | No candles found, baseAsset: {}, duration: {}",
-                    baseAsset, duration);
-            throw new NoSuchElementException("No data found for base asset %s, duration %s"
+            throw new NoSuchElementException("No data found, base asset: %s, duration: %s"
                     .formatted(baseAsset, duration));
         }
         try {
-
+            log.debug("StatisticService | Filtering list of candles by duration, base asset: {}, duration: {}",
+                    baseAsset, duration);
             var beginTime = getBeginTime(candles, duration);
             var endTime = getEndTime(candles);
             var filteredCandles = candles.stream()
-                    .filter(q -> !q.getCloseTime().isBefore(beginTime) && !q.getOpenTime().isAfter(endTime))
+                    .filter(q ->
+                            !q.getCloseTime().isBefore(beginTime) && !q.getOpenTime().isAfter(endTime))
                     .toList();
 
             return Statistic.builder()
@@ -61,56 +61,11 @@ public class StatisticService {
         }
     }
 
-    private Current getCurrent(List<Candle> candles) {
-        var lastCandle = candles.getLast();
-        return Current.builder()
-                .openPrice(lastCandle.getOpenPrice())
-                .closePrice(lastCandle.getClosePrice())
-                .highPrice(lastCandle.getHighPrice())
-                .lowPrice(lastCandle.getLowPrice())
-                .volume(lastCandle.getVolume())
-                .amount(lastCandle.getAmount())
-                .openTime(lastCandle.getOpenTime())
-                .closeTime(lastCandle.getCloseTime())
-                .trades(lastCandle.getTrades())
-                .build();
-    }
 
     private BigDecimal calculateAverage(List<Candle> candles, Function<Candle, BigDecimal> function) {
         return candles.stream()
                 .map(function).reduce(BigDecimal.ZERO, BigDecimal::add)
                 .divide(BigDecimal.valueOf(candles.size()), 2, RoundingMode.HALF_UP);
-    }
-
-    private Average getAverage(List<Candle> candles) {
-        var totalVolume = calculateTotal(candles, Candle::getVolume);
-        return Average.builder()
-                .openPrice(calculateAverage(candles, Candle::getOpenPrice))
-                .closePrice(calculateAverage(candles, Candle::getClosePrice))
-                .highPrice(calculateAverage(candles, Candle::getHighPrice))
-                .lowPrice(calculateAverage(candles, Candle::getLowPrice))
-                .tradePrice(getTradePrice(candles, totalVolume))
-                .priceRange(calculateAverage(candles, candle ->
-                        candle.getHighPrice().subtract(candle.getLowPrice())))
-                .build();
-
-
-    }
-
-    private BigDecimal getTradePrice(List<Candle> candles, BigDecimal totalVolume) {
-        var weightedPriceSum = candles.stream()
-                .map(q -> {
-                    var midPrice = q.getHighPrice()
-                            .add(q.getLowPrice())
-                            .add(q.getClosePrice())
-                            .divide(BigDecimal.valueOf(3), 10, RoundingMode.HALF_UP);
-                    return midPrice.multiply(q.getVolume());
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return totalVolume.compareTo(BigDecimal.ZERO) > 0
-                ? weightedPriceSum.divide(totalVolume, 2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
     }
 
     private Max calculateMaxValues(List<Candle> candles) {
@@ -152,7 +107,57 @@ public class StatisticService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
+    private Current getCurrent(List<Candle> candles) {
+        log.trace("StatisticService | Receiving candle current values");
+        var lastCandle = candles.getLast();
+        return Current.builder()
+                .openPrice(lastCandle.getOpenPrice())
+                .closePrice(lastCandle.getClosePrice())
+                .highPrice(lastCandle.getHighPrice())
+                .lowPrice(lastCandle.getLowPrice())
+                .volume(lastCandle.getVolume())
+                .amount(lastCandle.getAmount())
+                .openTime(lastCandle.getOpenTime())
+                .closeTime(lastCandle.getCloseTime())
+                .trades(lastCandle.getTrades())
+                .build();
+    }
+
+    private Average getAverage(List<Candle> candles) {
+        log.trace("StatisticService | Receiving candle average values");
+        var totalVolume = calculateTotal(candles, Candle::getVolume);
+        return Average.builder()
+                .openPrice(calculateAverage(candles, Candle::getOpenPrice))
+                .closePrice(calculateAverage(candles, Candle::getClosePrice))
+                .highPrice(calculateAverage(candles, Candle::getHighPrice))
+                .lowPrice(calculateAverage(candles, Candle::getLowPrice))
+                .tradePrice(getTradePrice(candles, totalVolume))
+                .priceRange(calculateAverage(candles, candle ->
+                        candle.getHighPrice().subtract(candle.getLowPrice())))
+                .build();
+
+
+    }
+
+    private BigDecimal getTradePrice(List<Candle> candles, BigDecimal totalVolume) {
+        log.trace("StatisticService | Receiving candle trade price");
+        var weightedPriceSum = candles.stream()
+                .map(q -> {
+                    var midPrice = q.getHighPrice()
+                            .add(q.getLowPrice())
+                            .add(q.getClosePrice())
+                            .divide(BigDecimal.valueOf(3), 10, RoundingMode.HALF_UP);
+                    return midPrice.multiply(q.getVolume());
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return totalVolume.compareTo(BigDecimal.ZERO) > 0
+                ? weightedPriceSum.divide(totalVolume, 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+    }
+
     private Total getTotal(List<Candle> candles) {
+        log.trace("StatisticService | Receiving candle total values");
         return Total.builder()
                 .volume(calculateTotal(candles, Candle::getVolume))
                 .amount(calculateTotal(candles, Candle::getAmount))
@@ -160,6 +165,7 @@ public class StatisticService {
     }
 
     private Info getInfo(List<Candle> candles, Instant beginTime, Instant endTime) {
+        log.trace("StatisticService | Receiving candle info");
         return Info.builder()
                 .entriesCount(candles.size())
                 .beginTime(beginTime)
@@ -169,10 +175,12 @@ public class StatisticService {
     }
 
     private Instant getEndTime(List<Candle> candles) {
+        log.trace("StatisticService | Receiving candle end time");
         return candles.getLast().getCloseTime();
     }
 
     private Instant getBeginTime(List<Candle> candles, String duration) {
+        log.trace("StatisticService | Receiving candle begin time");
         var endTime = getEndTime(candles);
 
         long value = Long.parseLong(duration.substring(0, duration.length() - 1));
@@ -183,7 +191,8 @@ public class StatisticService {
             case "h" -> endTime.minus(value, ChronoUnit.HOURS);
             case "m" -> endTime.minus(value, ChronoUnit.MINUTES);
             case "s" -> endTime.minus(value, ChronoUnit.SECONDS);
-            default -> throw new IllegalArgumentException("Unknown duration unit: " + unit);
+            default -> throw new IllegalArgumentException("Unknown duration unit: %s"
+                    .formatted(unit));
         };
     }
 }

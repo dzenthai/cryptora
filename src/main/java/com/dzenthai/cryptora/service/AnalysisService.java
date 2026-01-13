@@ -82,6 +82,7 @@ public class AnalysisService {
     }
 
     private Analysis analyzeSymbolCandles(String baseAsset, List<Candle> candles, boolean shouldLog) {
+        log.debug("AnalysisService | Analyzing symbol candles, base asset: {}", baseAsset);
         String symbol = baseAsset.toUpperCase().endsWith("USDT")
                 ? baseAsset.toUpperCase()
                 : baseAsset.toUpperCase() + "USDT";
@@ -104,17 +105,15 @@ public class AnalysisService {
     }
 
     private Analysis evaluateSignals(BarSeries series, String symbol, boolean shouldLog) {
-
+        log.debug("AnalysisService | Evaluating signals, symbol: {}, bar count: {}", symbol, series.getBarCount());
         ClosePriceIndicator close = new ClosePriceIndicator(series);
 
         SMAIndicator smaShort = new SMAIndicator(close, shortTimePeriod);
         SMAIndicator smaLong = new SMAIndicator(close, longTimePeriod);
 
         RSIIndicator rsiRaw = new RSIIndicator(close, period);
-        SMAIndicator rsi = new SMAIndicator(rsiRaw, 3);
 
         ATRIndicator atrRaw = new ATRIndicator(series, atrPeriod);
-        SMAIndicator atr = new SMAIndicator(atrRaw, 3);
 
         int end = series.getEndIndex();
         int prev = Math.max(0, end - 1);
@@ -122,8 +121,8 @@ public class AnalysisService {
         Num price = series.getLastBar().getClosePrice();
         Num shortSMA = smaShort.getValue(end);
         Num longSMA = smaLong.getValue(end);
-        Num rsiVal = rsi.getValue(end);
-        Num atrVal = atr.getValue(end);
+        Num rsiVal = rsiRaw.getValue(end);
+        Num atrVal = atrRaw.getValue(end);
 
         Num[] thresholds = calculateThresholds(longSMA, atrVal);
         Num thrUp = thresholds[0];
@@ -144,7 +143,7 @@ public class AnalysisService {
                 series.getBar(prev).getClosePrice(),
                 smaShort.getValue(prev),
                 smaLong.getValue(prev),
-                rsi.getValue(prev),
+                rsiRaw.getValue(prev),
                 thrUp,
                 thrLo,
                 liquidity
@@ -152,10 +151,12 @@ public class AnalysisService {
 
         String action = determineAction(scoreNow, scorePrev, currVol, recentAvgVol);
 
-        log.info("AnalysisService | Symbol: {}, price: {}, SMA{}: {}, SMA{}: {}, RSI: {}, ATR: {}, ATR%: {}, thrUp: {}, thrLo: {}, vol: {}/{}, score: {}",
-                symbol, price, shortTimePeriod, shortSMA, longTimePeriod, longSMA,
-                rsiVal, atrVal, atrVal.dividedBy(price).multipliedBy(DecimalNum.valueOf(100)),
-                thrUp, thrLo, currVol, recentAvgVol, scoreNow);
+        if (shouldLog) {
+            log.info("AnalysisService | Symbol: {}, price: {}, SMA{}: {}, SMA{}: {}, RSI: {}, ATR: {}, ATR%: {}, thrUp: {}, thrLo: {}, vol: {}/{}, score: {}",
+                    symbol, price, shortTimePeriod, shortSMA, longTimePeriod, longSMA,
+                    rsiVal, atrVal, atrVal.dividedBy(price).multipliedBy(DecimalNum.valueOf(100)),
+                    thrUp, thrLo, currVol, recentAvgVol, scoreNow);
+        }
 
         return buildAnalysis(symbol, action, marketState, volatility, trendStrength,
                 liquidity, riskLevel, confidence, shouldLog);
@@ -164,14 +165,21 @@ public class AnalysisService {
     private int calculateScore(
             Num price, Num shortSMA, Num longSMA,
             Num rsi, Num thrUp, Num thrLo, String liquidity) {
-
+        log.trace("AnalysisService | Calculating score");
         int score = 0;
 
-        if (shortSMA.isGreaterThan(longSMA)) score += 2;
-        else score -= 2;
+        double smaDiffPercent = 0.0;
+        if (longSMA != null && !longSMA.isZero()) {
+            smaDiffPercent = shortSMA.minus(longSMA).abs()
+                    .dividedBy(longSMA)
+                    .multipliedBy(DecimalNum.valueOf(100))
+                    .doubleValue();
+        }
+
+        if (shortSMA.isGreaterThan(longSMA) && smaDiffPercent > 0.5) score += 2;
+        else if (shortSMA.isLessThan(longSMA) && smaDiffPercent > 0.5) score -= 2;
 
         if (rsi.isLessThan(DecimalNum.valueOf(oversold))) score += 2;
-        else if (rsi.isLessThan(DecimalNum.valueOf(oversold + 10))) score += 1;
 
         if (rsi.isGreaterThan(DecimalNum.valueOf(overbought))) score -= 2;
         else if (rsi.isGreaterThan(DecimalNum.valueOf(overbought - 10))) score -= 1;
@@ -185,18 +193,22 @@ public class AnalysisService {
     }
 
     private String determineAction(int scoreNow, int scorePrev, double currVol, double avgVol) {
-
-        boolean volumeOk = currVol >= avgVol * 0.3;
+        log.trace("AnalysisService | Determining action");
+        double safeAvgVol = Math.max(avgVol, 1e-6);
+        boolean volumeOk = currVol >= safeAvgVol * 0.3;
 
         if (scoreNow >= 4 && scorePrev >= 2 && volumeOk) return "STRONG_BUY";
-        if (scoreNow >= 2) return "BUY";
         if (scoreNow <= -4 && scorePrev <= -2 && volumeOk) return "STRONG_SELL";
-        if (scoreNow <= -2) return "SELL";
+
+        if (scoreNow >= 2 && (scorePrev >= 1 || volumeOk)) return "BUY";
+        if (scoreNow <= -2 && (scorePrev <= -1 || volumeOk)) return "SELL";
 
         return "HOLD";
     }
 
+
     private double calculateRecentAvgVolume(BarSeries series) {
+        log.trace("AnalysisService | Calculating recent average volume");
         int bars = Math.min(volumePeriod, series.getBarCount());
         double sum = 0;
         for (int i = series.getBarCount() - bars; i < series.getBarCount(); i++) {
@@ -206,10 +218,16 @@ public class AnalysisService {
     }
 
     private String calculateMarketState(
-            Num price, Num shortSMA, Num longSMA,
-            Num thrUp, Num thrLo,
-            String volatility, String liquidity, BarSeries series) {
-
+            Num price,
+            Num shortSMA,
+            Num longSMA,
+            Num thrUp,
+            Num thrLo,
+            String volatility,
+            String liquidity,
+            BarSeries series
+    ) {
+        log.trace("AnalysisService | Calculating market state");
         int lookback = Math.min(50, series.getBarCount());
         Num high = series.getBar(series.getBarCount() - lookback).getHighPrice();
         Num low = series.getBar(series.getBarCount() - lookback).getLowPrice();
@@ -232,16 +250,20 @@ public class AnalysisService {
         if (nearBreakout && "HIGH".equals(liquidity)) return "BREAKOUT_ATTEMPT";
         if (compressed && "LOW".equals(volatility)) return "CONSOLIDATION";
 
-        Num diff = shortSMA.minus(longSMA).abs()
-                .dividedBy(longSMA)
-                .multipliedBy(DecimalNum.valueOf(100));
-
+        Num diff = DecimalNum.valueOf(0);
+        if (!longSMA.isZero()) {
+            diff = shortSMA.minus(longSMA).abs()
+                    .dividedBy(longSMA)
+                    .multipliedBy(DecimalNum.valueOf(100));
+        }
         if (diff.isGreaterThan(DecimalNum.valueOf(1.0))) return "TRENDING";
+
 
         return "RANGE";
     }
 
     private String calculateVolatility(Num atr, Num price) {
+        log.trace("AnalysisService | Calculating volatility");
         double p = atr.dividedBy(price).multipliedBy(DecimalNum.valueOf(100)).doubleValue();
         if (p < 1.0) return "LOW";
         if (p < 3.0) return "MEDIUM";
@@ -249,6 +271,9 @@ public class AnalysisService {
     }
 
     private String calculateTrendStrength(Num shortSMA, Num longSMA, Num rsi) {
+        log.trace("AnalysisService | Calculating trend strength");
+        if (longSMA == null || longSMA.isZero()) return "WEAK";
+
         double diff = shortSMA.minus(longSMA).abs()
                 .dividedBy(longSMA)
                 .multipliedBy(DecimalNum.valueOf(100))
@@ -261,21 +286,40 @@ public class AnalysisService {
         return "WEAK";
     }
 
+
     private String calculateLiquidity(BarSeries series) {
-        int bars = Math.min(20, series.getBarCount());
-        double sum = 0;
-        for (int i = series.getBarCount() - bars; i < series.getBarCount(); i++) {
-            sum += series.getBar(i).getVolume().doubleValue();
+        log.trace("AnalysisService | Calculating liquidity");
+        int barCount = series.getBarCount();
+        if (barCount < 2) return "LOW";
+
+        int windowLookback = Math.min(20, barCount);
+
+        double globalVolume = 0;
+        for (int i = 0; i < barCount; i++) {
+            globalVolume += series.getBar(i).getVolume().doubleValue();
         }
-        double avg = sum / bars;
+        double globalAvg = globalVolume / barCount;
+
+        double windowVolume = 0;
+        for (int i = barCount - windowLookback; i < barCount; i++) {
+            windowVolume += series.getBar(i).getVolume().doubleValue();
+        }
+        double windowAvg = windowVolume / windowLookback;
+
         double curr = series.getLastBar().getVolume().doubleValue();
 
-        if (curr < avg * 0.5) return "LOW";
-        if (curr > avg * 1.5) return "HIGH";
+        double localRatio = curr / Math.max(windowAvg, 1e-6);
+        double globalRatio = curr / Math.max(globalAvg, 1e-6);
+
+        if (localRatio < 0.5 && globalRatio < 0.5) return "LOW";
+        if (localRatio > 1.5 && globalRatio > 1.0) return "HIGH";
+        if (localRatio < 0.7 || globalRatio < 0.5) return "LOW";
+
         return "NORMAL";
     }
 
     private String calculateRiskLevel(String volatility, String trendStrength, String liquidity) {
+        log.trace("AnalysisService | Calculating risk level");
         int risk = 0;
         if ("HIGH".equals(volatility)) risk += 3;
         if ("WEAK".equals(trendStrength)) risk += 3;
@@ -286,9 +330,13 @@ public class AnalysisService {
     }
 
     private Integer calculateConfidenceScore(
-            Num rsi, Num shortSMA, Num longSMA,
-            String trendStrength, String volatility, String liquidity) {
-
+            Num rsi, Num shortSMA,
+            Num longSMA,
+            String trendStrength,
+            String volatility,
+            String liquidity
+    ) {
+        log.trace("AnalysisService | Calculating confidence score");
         int score = 50;
 
         double rv = rsi.doubleValue();
@@ -306,15 +354,24 @@ public class AnalysisService {
     }
 
     private Num[] calculateThresholds(Num base, Num atr) {
+        log.trace("AnalysisService | Calculating thresholds");
         Num up = base.plus(atr.multipliedBy(DecimalNum.valueOf(atrMultiplier)));
         Num lo = base.minus(atr.multipliedBy(DecimalNum.valueOf(atrMultiplier)));
         return new Num[]{up, lo};
     }
 
     private Analysis buildAnalysis(
-            String symbol, String action, String marketState, String volatility,
-            String trendStrength, String liquidity, String riskLevel,
-            Integer confidenceScore, boolean shouldLog) {
+            String symbol,
+            String action,
+            String marketState,
+            String volatility,
+            String trendStrength,
+            String liquidity,
+            String riskLevel,
+            Integer confidenceScore,
+            boolean shouldLog
+    ) {
+        log.trace("AnalysisService | Building analysis for {}", symbol);
 
         if (shouldLog) {
             String timestamp = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ssZ")
@@ -336,6 +393,7 @@ public class AnalysisService {
     }
 
     private BarSeries buildBarSeries(List<Candle> candles) {
+        log.trace("AnalysisService | Building bar series");
         List<Bar> bars = new ArrayList<>();
         Instant last = null;
 
@@ -353,18 +411,19 @@ public class AnalysisService {
                 .build();
     }
 
-    private Bar buildBar(Candle c) {
+    private Bar buildBar(Candle candle) {
+        log.trace("AnalysisService | Building bar, symbol: {}", candle.getSymbol());
         return new BaseBar(
-                c.getTimePeriod(),
-                c.getOpenTime(),
-                c.getCloseTime(),
-                DecimalNum.valueOf(c.getOpenPrice()),
-                DecimalNum.valueOf(c.getHighPrice()),
-                DecimalNum.valueOf(c.getLowPrice()),
-                DecimalNum.valueOf(c.getClosePrice()),
-                DecimalNum.valueOf(c.getVolume()),
-                DecimalNum.valueOf(c.getAmount()),
-                c.getTrades()
+                candle.getTimePeriod(),
+                candle.getOpenTime(),
+                candle.getCloseTime(),
+                DecimalNum.valueOf(candle.getOpenPrice()),
+                DecimalNum.valueOf(candle.getHighPrice()),
+                DecimalNum.valueOf(candle.getLowPrice()),
+                DecimalNum.valueOf(candle.getClosePrice()),
+                DecimalNum.valueOf(candle.getVolume()),
+                DecimalNum.valueOf(candle.getAmount()),
+                candle.getTrades()
         );
     }
 }
