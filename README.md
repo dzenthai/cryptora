@@ -27,7 +27,7 @@ these risks.
 
 ## **Key Features**
 
-- **Real-time Data Fetching**: Integrates with Binance API to retrieve live 1-minute candlestick data for multiple
+- **Real-time Data Fetching**: Integrates with Binance API to retrieve live n-minute candlestick data for multiple
   cryptocurrencies with automatic deduplication.
 
 - **Historical Data Storage**: MongoDB stores complete price history.
@@ -71,7 +71,7 @@ these risks.
 
 ## **Dependencies**
 
-- **Spring Boot Starter Web 3.4.0**: RESTful web services framework with embedded Tomcat server for API endpoints
+- **Spring Boot Starter Web**: RESTful web services framework with embedded Tomcat server for API endpoints
 
 - **Ta4j 0.22.0**: Professional technical analysis library providing battle-tested indicators (SMA, RSI, ATR) and
   strategy framework
@@ -79,7 +79,7 @@ these risks.
 - **Binance Spot Connector 2.0.0**: Official Binance API client for accessing real-time market data and candlestick
   information
 
-- **Spring Boot Starter Data MongoDB 3.4.0**: MongoDB integration with repository abstraction and document mapping for
+- **Spring Boot Starter Data MongoDB**: MongoDB integration with repository abstraction and document mapping for
   time-series data storage
 
 - **Gson**: Google's JSON serialization/deserialization library for parsing API responses
@@ -96,11 +96,22 @@ The application continuously fetches 1-minute candlestick data from Binance and 
 generate trading signals. The analysis considers:
 
 1. **Short-term vs Long-term Moving Average Crossovers**: Identifies trend changes when faster MA crosses slower MA
-2. **RSI Momentum**: Filters signals based on overbought (>65) and oversold (<35) conditions
+2. **RSI Momentum**: Filters signals based on overbought and oversold conditions
 3. **ATR-based Thresholds**: Dynamic support/resistance levels adapted to current market volatility
 4. **Volume Confirmation**: Requires above-average volume to validate breakout signals
 
-<img src="assets/docker-example.png" alt="">
+```shell
+2026-01-19T03:28:07.918Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : AnalysisService | Receiving analysis via logs
+
+2026-01-19T03:28:07.956Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : IndicatorMapper | Symbol: ETHUSDT, Price: 3204.91000000, SMA9: 3204.03888889, SMA21: 3206.85476190, SMA Diff%: -0.08780794, RSI: 47.45370010, ATR: 2.06935262, ATR%: 0.06456800, Upper Threshold: 3210.99346714, Lower Threshold: 3202.71605667, Vol: 21.70080000/236.73354500, Volume Ok: false
+2026-01-19T03:28:07.957Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : AnalysisMapper  | Symbol: ETHUSDT, Action: HOLD, Market: RANGE, Volatility: LOW, Trend: WEAK, Liquidity: LOW, Risk: MEDIUM, Confidence: 30%
+
+2026-01-19T03:28:07.959Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : IndicatorMapper | Symbol: BTCUSDT, Price: 92573.55000000, SMA9: 92607.57444444, SMA21: 92670.42714286, SMA Diff%: -0.06782390, RSI: 42.56293722, ATR: 31.50832251, ATR%: 0.03403600, Upper Threshold: 92733.44378789, Lower Threshold: 92607.41049783, Vol: 0.32690000/5.85294000, Volume Ok: false
+2026-01-19T03:28:07.959Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : AnalysisMapper  | Symbol: BTCUSDT, Action: HOLD, Market: CONSOLIDATION, Volatility: LOW, Trend: WEAK, Liquidity: LOW, Risk: MEDIUM, Confidence: 30%
+
+2026-01-19T03:28:07.961Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : IndicatorMapper | Symbol: TONUSDT, Price: 1.62300000, SMA9: 1.62344444, SMA21: 1.62423810, SMA Diff%: -0.04886296, RSI: 47.60042545, ATR: 0.00116970, ATR%: 0.07207000, Upper Threshold: 1.62657750, Lower Threshold: 1.62189869, Vol: 0E-8/18069.54450000, Volume Ok: false
+2026-01-19T03:28:07.961Z  INFO 1 --- [cryptora] [   scheduling-1] c.d.cryptora.service.AnalysisService     : AnalysisMapper  | Symbol: TONUSDT, Action: HOLD, Market: RANGE, Volatility: LOW, Trend: WEAK, Liquidity: LOW, Risk: MEDIUM, Confidence: 30%
+```
 
 In the example above:
 
@@ -120,15 +131,91 @@ The analysis service evaluates BTC, ETH, and TON in real-time, displaying:
 Access comprehensive market reports via REST endpoint:
 
 ```
-GET http://localhost:8088/api/v1/report/ticker={ticker}&interval={interval}
+GET http://localhost:8088/api/v1/report/asset=btc&duration=6h
 ```
 
 **Parameters**:
 
-- `ticker`: Cryptocurrency symbol (btc, eth, ton)
-- `interval`: Time window (e.g., 1h, 6h, 1d, 7d)
+- `asset`: Cryptocurrency symbol (btc, eth, ton)
+- `duration`: Lookback window (e.g., 1h, 6h, 1d, 7d)
 
-<img src="./assets/response-example.png" alt="">
+```json
+{
+  "statistic": {
+    "analysis": {
+      "symbol": "BTCUSDT",
+      "action": "HOLD",
+      "market_state": "CONSOLIDATION",
+      "volatility": "LOW",
+      "trend_strength": "WEAK",
+      "liquidity": "LOW",
+      "risk_level": "MEDIUM",
+      "confidence_score": 30,
+      "indicators": {
+        "price": 92599.89000000,
+        "sma_short": 92732.23777778,
+        "sma_long": 92690.92809524,
+        "sma_diff": 0.04456713,
+        "rsi": 38.83955912,
+        "atr": 27.43356931,
+        "atr_percent": 0.02962600,
+        "upper_threshold": 92745.79523385,
+        "lower_threshold": 92636.06095663,
+        "current_volume": 0.62158000,
+        "average_volume": 5.85294000,
+        "volume_ok": false
+      }
+    },
+    "current": {
+      "open_price": 92616.37000000,
+      "close_price": 92599.89000000,
+      "high_price": 92616.37000000,
+      "low_price": 92599.88000000,
+      "volume": 0.62158000,
+      "amount": 57564.78136740,
+      "open_time": "2026-01-19T03:23:00Z",
+      "close_time": "2026-01-19T03:23:59.999Z",
+      "trades": 253
+    },
+    "average": {
+      "open_price": 93720.17,
+      "close_price": 93712.71,
+      "high_price": 93751.07,
+      "low_price": 93677.02,
+      "trade_price": 93237.26,
+      "price_range": 74.05
+    },
+    "max_values": {
+      "open_price": 95521.73000000,
+      "close_price": 95521.74000000,
+      "high_price": 95531.12000000,
+      "low_price": 95521.00000000,
+      "price_range": 917.16000000,
+      "volume": 437.07618000,
+      "amount": 41129202.21135120
+    },
+    "min_values": {
+      "open_price": 92209.91000000,
+      "close_price": 92209.91000000,
+      "high_price": 92328.15000000,
+      "low_price": 91910.20000000,
+      "price_range": 0.01000000,
+      "volume": 0.01331000,
+      "amount": 1231.59500140
+    },
+    "total": {
+      "volume": 7903.66,
+      "amount": 736842240.13
+    },
+    "additional_information": {
+      "entries_count": 361,
+      "beginTime": "2026-01-18T21:23:59.999Z",
+      "endTime": "2026-01-19T03:23:59.999Z",
+      "duration": "PT6H"
+    }
+  }
+}
+```
 
 **Response includes**:
 
@@ -143,7 +230,29 @@ GET http://localhost:8088/api/v1/report/ticker={ticker}&interval={interval}
 
 After successfully retrieving data from the Binance API, all cryptocurrency information is stored in MongoDB.
 
-<img src="assets/mongo-example.png" alt="">
+```json
+  {
+  "_id": {
+    "$oid": "696d9ccd0ae15d42640ad8bd"
+  },
+  "_class": "com.dzenthai.cryptora.model.entity.Candle",
+  "amount": "498124.35085260",
+  "closeTime": {
+    "$date": "2026-01-18T18:35:59.999Z"
+  },
+  "close_price": "95359.47000000",
+  "high_price": "95376.44000000",
+  "low_price": "95335.41000000",
+  "openTime": {
+    "$date": "2026-01-18T18:35:00.000Z"
+  },
+  "open_price": "95376.43000000",
+  "symbol": "BTCUSDT",
+  "timePeriod": "PT59.999S",
+  "trades": 2305,
+  "volume": "5.22394000"
+}
+```
 
 In the example above:
 
@@ -164,8 +273,8 @@ In the example above:
 
 ### **Prerequisites**
 
-- Java 23
-- Gradle 8.14
+- Java 21
+- Gradle 9.2.1
 - Docker 29.1.3
 
 ### **Installation and Startup Steps**
@@ -183,7 +292,6 @@ In the example above:
    You can obtain the API key and secret by following this [link](https://www.binance.com/my/settings/api-management).
 
    Create an .env file and add the required environment variables such as the Binance API key and secret.
-
 
 3. **Build the Project Using Gradle**
    ```bash
@@ -207,25 +315,27 @@ Edit `application.yaml` to customize analysis behavior:
 cryptora:
   short:
     time:
-      period: 5      # Short-term MA period (minutes)
+      period: 9     # Fast MA; lower = quicker response to price, higher = smoother trend
   long:
     time:
-      period: 15     # Long-term MA period (minutes)
+      period: 21    # Slow MA; provides the trend baseline for crossover signals
   atr:
-    period: 14       # ATR calculation period
-    multiplier: 1.5  # Threshold multiplier (lower = more signals)
+    period: 14      # Volatility window; captures the average price swing range
+    multiplier: 2.0 # Dynamic filter; higher = more noise protection, lower = aggressive entries
   rsi:
-    period: 9        # RSI calculation period
-    overbought: 65   # RSI overbought threshold
-    oversold: 35     # RSI oversold threshold
+    period: 14      # Momentum window; standard period to identify market exhaustion
+    overbought: 70  # Sell pressure zone; higher = waits for extreme greed before exiting
+    oversold: 30    # Buy pressure zone; lower = hunts for deeper dips (fewer "fake" bottoms)
+  volume:
+    period: 20      # Liquidity baseline; filters out low-volume "wash trading" and spikes
 ```
 
 **Recommended Settings for 1-minute Timeframe**:
 
-- Shorter periods (5/15) for faster reaction to crypto volatility
-- RSI period of 9 instead of standard 14 for quicker momentum detection
-- ATR multiplier of 1.5 optimized for cryptocurrency volatility patterns
-- Overbought/Oversold thresholds at 65/35 to avoid extreme noise
+- Standard periods (9/21) for a balanced trend baseline and smoother crossover signals.
+- Standard RSI period of 14 for reliable momentum detection and market exhaustion analysis.
+- ATR multiplier of 2.0 to provide high-level noise protection and filter out false breakouts.
+- Classic Overbought/Oversold thresholds (70/30) to identify established market reversals and extreme greed/fear.
 
 ### **Adding New Cryptocurrencies**
 
@@ -253,8 +363,6 @@ public void executeInSequence() {
     // Fetch and analyze data
 }
 ```
-
-**Warning**: Setting intervals below 60 seconds may trigger Binance API rate limits.
 
 ### **Historical Data Limit**
 

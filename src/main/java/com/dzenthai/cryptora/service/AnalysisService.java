@@ -1,7 +1,8 @@
 package com.dzenthai.cryptora.service;
 
+import com.dzenthai.cryptora.mapper.AnalysisMapper;
+import com.dzenthai.cryptora.mapper.IndicatorMapper;
 import com.dzenthai.cryptora.model.dto.Analysis;
-import com.dzenthai.cryptora.model.dto.Details;
 import com.dzenthai.cryptora.model.entity.Candle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +18,6 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,23 +29,27 @@ import java.util.stream.Collectors;
 @Service
 public class AnalysisService {
 
-    private final Integer shortTimePeriod;
+    private final int shortTimePeriod;
 
-    private final Integer longTimePeriod;
+    private final int longTimePeriod;
 
-    private final Integer period;
+    private final int period;
 
-    private final Integer overbought;
+    private final int overbought;
 
-    private final Integer oversold;
+    private final int oversold;
 
-    private final Integer atrPeriod;
+    private final int atrPeriod;
 
-    private final Double atrMultiplier;
+    private final double atrMultiplier;
 
-    private final Integer volumePeriod;
+    private final int volumePeriod;
 
     private final CandleService candleService;
+
+    private final AnalysisMapper analysisMapper;
+
+    private final IndicatorMapper indicatorMapper;
 
     public AnalysisService(
             @Value("${cryptora.short.time.period}") Integer shortTimePeriod,
@@ -57,7 +60,9 @@ public class AnalysisService {
             @Value("${cryptora.atr.period}") Integer atrPeriod,
             @Value("${cryptora.atr.multiplier}") Double atrMultiplier,
             @Value("${cryptora.volume.period:20}") Integer volumePeriod,
-            CandleService candleService
+            CandleService candleService,
+            AnalysisMapper analysisMapper,
+            IndicatorMapper indicatorMapper
     ) {
         this.shortTimePeriod = shortTimePeriod;
         this.longTimePeriod = longTimePeriod;
@@ -68,6 +73,8 @@ public class AnalysisService {
         this.atrMultiplier = atrMultiplier;
         this.volumePeriod = volumePeriod;
         this.candleService = candleService;
+        this.analysisMapper = analysisMapper;
+        this.indicatorMapper = indicatorMapper;
     }
 
     public Analysis getAnalysis(String baseAsset) {
@@ -155,26 +162,25 @@ public class AnalysisService {
         double smaDiff = calculateSMADiffPercent(shortSMA, longSMA);
         boolean volumeOk = currVol >= Math.max(recentAvgVol, 1e-6) * 0.5;
 
-        var details = buildDetails(
+        var indicator = indicatorMapper.mapToIndicator(
                 symbol,
-                price.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                shortSMA.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                longSMA.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                BigDecimal.valueOf(smaDiff).setScale(8, RoundingMode.HALF_UP),
-                rsiVal.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                atrVal.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                atrVal.bigDecimalValue()
-                        .divide(price.bigDecimalValue(), 8, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100)),
-                thrUp.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                thrLo.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
-                BigDecimal.valueOf(currVol).setScale(8, RoundingMode.HALF_UP),
-                BigDecimal.valueOf(recentAvgVol).setScale(8, RoundingMode.HALF_UP),
+                price,
+                shortTimePeriod,
+                shortSMA,
+                longTimePeriod,
+                longSMA,
+                smaDiff,
+                rsiVal,
+                atrVal,
+                thrUp,
+                thrLo,
+                currVol,
+                recentAvgVol,
                 volumeOk,
                 shouldLog
         );
 
-        return buildAnalysis(
+        return analysisMapper.mapToAnalysis(
                 symbol,
                 action,
                 marketState,
@@ -183,7 +189,7 @@ public class AnalysisService {
                 liquidity,
                 riskLevel,
                 confidence,
-                details,
+                indicator,
                 shouldLog
         );
     }
@@ -434,77 +440,6 @@ public class AnalysisService {
                 .dividedBy(longSMA)
                 .multipliedBy(DecimalNum.valueOf(100))
                 .doubleValue();
-    }
-
-    private Details buildDetails(
-            String symbol,
-            BigDecimal price,
-            BigDecimal smaShort,
-            BigDecimal smaLong,
-            BigDecimal smaDiff,
-            BigDecimal rsi,
-            BigDecimal atr,
-            BigDecimal atrPercent,
-            BigDecimal upperThreshold,
-            BigDecimal lowerThreshold,
-            BigDecimal currentVolume,
-            BigDecimal averageVolume,
-            boolean volumeOk,
-            boolean shouldLog
-    ) {
-        log.trace("AnalysisService | Building details for {}", symbol);
-
-        if (shouldLog) {
-            log.info("AnalysisService | Symbol: {}, Price: {}, SMA{}: {}, SMA{}: {}, SMA Diff%: {}, RSI: {}, ATR: {}, ATR%: {}, Upper Threshold: {}, Lower Threshold: {}, Vol: {}/{}, Volume Ok: {}",
-                    symbol, price, shortTimePeriod, smaShort, longTimePeriod, smaLong, smaDiff, rsi, atr, atrPercent, upperThreshold, lowerThreshold, currentVolume, averageVolume, volumeOk);
-        }
-
-        return Details.builder()
-                .price(price)
-                .smaShort(smaShort)
-                .smaLong(smaLong)
-                .smaDiff(smaDiff)
-                .rsi(rsi)
-                .atr(atr)
-                .atrPercent(atrPercent)
-                .upperThreshold(upperThreshold)
-                .lowerThreshold(lowerThreshold)
-                .currentVolume(currentVolume)
-                .averageVolume(averageVolume)
-                .volumeOk(volumeOk)
-                .build();
-    }
-
-    private Analysis buildAnalysis(
-            String symbol,
-            String action,
-            String marketState,
-            String volatility,
-            String trendStrength,
-            String liquidity,
-            String riskLevel,
-            Integer confidenceScore,
-            Details details,
-            boolean shouldLog
-    ) {
-        log.trace("AnalysisService | Building analysis for {}", symbol);
-
-        if (shouldLog) {
-            log.info("AnalysisService | Symbol: {}, Action: {}, Market: {}, Volatility: {}, Trend: {}, Liquidity: {}, Risk: {}, Confidence: {}%",
-                    symbol, action, marketState, volatility, trendStrength, liquidity, riskLevel, confidenceScore);
-        }
-
-        return Analysis.builder()
-                .symbol(symbol)
-                .action(action)
-                .marketState(marketState)
-                .volatility(volatility)
-                .trendStrength(trendStrength)
-                .liquidity(liquidity)
-                .riskLevel(riskLevel)
-                .confidenceScore(confidenceScore)
-                .details(details)
-                .build();
     }
 
     private BarSeries buildBarSeries(List<Candle> candles) {

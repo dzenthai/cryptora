@@ -22,7 +22,7 @@ public record Analysis(
         String riskLevel,
         @JsonProperty("confidence_score")
         Integer confidenceScore,
-        @JsonProperty("details")
-        Details details
+        @JsonProperty("indicators")
+        Indicator details
 ) {
 }
