@@ -1,6 +1,7 @@
 package com.dzenthai.cryptora.service;
 
 import com.dzenthai.cryptora.model.dto.Analysis;
+import com.dzenthai.cryptora.model.dto.Details;
 import com.dzenthai.cryptora.model.entity.Candle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,9 +17,9 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -78,7 +79,8 @@ public class AnalysisService {
         candleService.getAllCandles().stream()
                 .collect(Collectors.groupingBy(Candle::getSymbol))
                 .forEach((baseAsset, candles) ->
-                        analyzeSymbolCandles(baseAsset, candles, true));
+                        analyzeSymbolCandles(baseAsset, candles, true)
+                );
     }
 
     private Analysis analyzeSymbolCandles(String baseAsset, List<Candle> candles, boolean shouldLog) {
@@ -110,9 +112,7 @@ public class AnalysisService {
 
         SMAIndicator smaShort = new SMAIndicator(close, shortTimePeriod);
         SMAIndicator smaLong = new SMAIndicator(close, longTimePeriod);
-
         RSIIndicator rsiRaw = new RSIIndicator(close, period);
-
         ATRIndicator atrRaw = new ATRIndicator(series, atrPeriod);
 
         int end = series.getEndIndex();
@@ -136,7 +136,8 @@ public class AnalysisService {
         String liquidity = calculateLiquidity(series);
         String marketState = calculateMarketState(price, shortSMA, longSMA, thrUp, thrLo, volatility, liquidity, series);
         String riskLevel = calculateRiskLevel(volatility, trendStrength, liquidity);
-        Integer confidence = calculateConfidenceScore(rsiVal, shortSMA, longSMA, trendStrength, volatility, liquidity);
+
+        Integer confidence = calculateConfidenceScore(rsiVal, shortSMA, longSMA, trendStrength, volatility, liquidity, marketState);
 
         int scoreNow = calculateScore(price, shortSMA, longSMA, rsiVal, thrUp, thrLo, liquidity);
         int scorePrev = calculateScore(
@@ -149,17 +150,86 @@ public class AnalysisService {
                 liquidity
         );
 
-        String action = determineAction(scoreNow, scorePrev, currVol, recentAvgVol);
+        String action = determineAction(scoreNow, scorePrev, currVol, recentAvgVol, marketState, trendStrength, liquidity);
 
-        if (shouldLog) {
-            log.info("AnalysisService | Symbol: {}, price: {}, SMA{}: {}, SMA{}: {}, RSI: {}, ATR: {}, ATR%: {}, thrUp: {}, thrLo: {}, vol: {}/{}, score: {}",
-                    symbol, price, shortTimePeriod, shortSMA, longTimePeriod, longSMA,
-                    rsiVal, atrVal, atrVal.dividedBy(price).multipliedBy(DecimalNum.valueOf(100)),
-                    thrUp, thrLo, currVol, recentAvgVol, scoreNow);
+        double smaDiff = calculateSMADiffPercent(shortSMA, longSMA);
+        boolean volumeOk = currVol >= Math.max(recentAvgVol, 1e-6) * 0.5;
+
+        var details = buildDetails(
+                symbol,
+                price.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                shortSMA.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                longSMA.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                BigDecimal.valueOf(smaDiff).setScale(8, RoundingMode.HALF_UP),
+                rsiVal.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                atrVal.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                atrVal.bigDecimalValue()
+                        .divide(price.bigDecimalValue(), 8, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100)),
+                thrUp.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                thrLo.bigDecimalValue().setScale(8, RoundingMode.HALF_UP),
+                BigDecimal.valueOf(currVol).setScale(8, RoundingMode.HALF_UP),
+                BigDecimal.valueOf(recentAvgVol).setScale(8, RoundingMode.HALF_UP),
+                volumeOk,
+                shouldLog
+        );
+
+        return buildAnalysis(
+                symbol,
+                action,
+                marketState,
+                volatility,
+                trendStrength,
+                liquidity,
+                riskLevel,
+                confidence,
+                details,
+                shouldLog
+        );
+    }
+
+    private String determineAction(
+            int scoreNow, int scorePrev, double currVol, double avgVol,
+            String marketState, String trendStrength, String liquidity) {
+
+        log.trace("AnalysisService | Determining action");
+        double safeAvgVol = Math.max(avgVol, 1e-6);
+
+        boolean volumeOk = currVol >= safeAvgVol * 0.5;
+        boolean liquidityHighOrNormal = "HIGH".equals(liquidity) || "NORMAL".equals(liquidity);
+        boolean liquidityLow = "LOW".equals(liquidity);
+
+        if (("CONSOLIDATION".equals(marketState) || "RANGE".equals(marketState))
+                && "WEAK".equals(trendStrength)) {
+            if (Math.abs(scoreNow) < 3 || liquidityLow) {
+                return "HOLD";
+            }
         }
 
-        return buildAnalysis(symbol, action, marketState, volatility, trendStrength,
-                liquidity, riskLevel, confidence, shouldLog);
+        if ("BREAKOUT_ATTEMPT".equals(marketState)) {
+            if (scoreNow >= 3 && volumeOk && liquidityHighOrNormal) return "BUY";
+            if (scoreNow <= -3 && volumeOk && liquidityHighOrNormal) return "SELL";
+            return "HOLD";
+        }
+
+        if (scoreNow >= 4 && scorePrev >= 2 && volumeOk && liquidityHighOrNormal) return "STRONG_BUY";
+        if (scoreNow <= -4 && scorePrev <= -2 && volumeOk && liquidityHighOrNormal) return "STRONG_SELL";
+
+        if (scoreNow >= 2) {
+            if (scorePrev >= 1) {
+                if (liquidityLow && !volumeOk) return "HOLD";
+                return "BUY";
+            }
+            if (volumeOk && liquidityHighOrNormal) return "BUY";
+        }
+        if (scoreNow <= -2) {
+            if (scorePrev <= -1) {
+                if (liquidityLow && !volumeOk) return "HOLD";
+                return "SELL";
+            }
+            if (volumeOk && liquidityHighOrNormal) return "SELL";
+        }
+        return "HOLD";
     }
 
     private int calculateScore(
@@ -168,44 +238,38 @@ public class AnalysisService {
         log.trace("AnalysisService | Calculating score");
         int score = 0;
 
-        double smaDiffPercent = 0.0;
-        if (longSMA != null && !longSMA.isZero()) {
-            smaDiffPercent = shortSMA.minus(longSMA).abs()
-                    .dividedBy(longSMA)
-                    .multipliedBy(DecimalNum.valueOf(100))
-                    .doubleValue();
-        }
+        double smaDiffPercent = calculateSMADiffPercent(shortSMA, longSMA);
 
-        if (shortSMA.isGreaterThan(longSMA) && smaDiffPercent > 0.5) score += 2;
-        else if (shortSMA.isLessThan(longSMA) && smaDiffPercent > 0.5) score -= 2;
+        if (smaDiffPercent > 0.5) score += 2;
+        else if (smaDiffPercent < -0.5) score -= 2;
 
         if (rsi.isLessThan(DecimalNum.valueOf(oversold))) score += 2;
 
         if (rsi.isGreaterThan(DecimalNum.valueOf(overbought))) score -= 2;
         else if (rsi.isGreaterThan(DecimalNum.valueOf(overbought - 10))) score -= 1;
 
-        if (price.isLessThan(thrLo)) score += 1;
-        if (price.isGreaterThan(thrUp)) score -= 1;
+        boolean highVolume = "HIGH".equals(liquidity) || "NORMAL".equals(liquidity);
 
-        if ("LOW".equals(liquidity)) score -= 1;
+        if (price.isGreaterThan(thrUp)) {
+            if (highVolume && smaDiffPercent > 0) {
+                score += 2;
+            } else {
+                score -= 1;
+            }
+        }
+
+        if (price.isLessThan(thrLo)) {
+            if (highVolume && smaDiffPercent < 0) {
+                score -= 2;
+            } else {
+                score += 1;
+            }
+        }
+
+        if ("LOW".equals(liquidity)) score -= 2;
 
         return score;
     }
-
-    private String determineAction(int scoreNow, int scorePrev, double currVol, double avgVol) {
-        log.trace("AnalysisService | Determining action");
-        double safeAvgVol = Math.max(avgVol, 1e-6);
-        boolean volumeOk = currVol >= safeAvgVol * 0.3;
-
-        if (scoreNow >= 4 && scorePrev >= 2 && volumeOk) return "STRONG_BUY";
-        if (scoreNow <= -4 && scorePrev <= -2 && volumeOk) return "STRONG_SELL";
-
-        if (scoreNow >= 2 && (scorePrev >= 1 || volumeOk)) return "BUY";
-        if (scoreNow <= -2 && (scorePrev <= -1 || volumeOk)) return "SELL";
-
-        return "HOLD";
-    }
-
 
     private double calculateRecentAvgVolume(BarSeries series) {
         log.trace("AnalysisService | Calculating recent average volume");
@@ -250,14 +314,8 @@ public class AnalysisService {
         if (nearBreakout && "HIGH".equals(liquidity)) return "BREAKOUT_ATTEMPT";
         if (compressed && "LOW".equals(volatility)) return "CONSOLIDATION";
 
-        Num diff = DecimalNum.valueOf(0);
-        if (!longSMA.isZero()) {
-            diff = shortSMA.minus(longSMA).abs()
-                    .dividedBy(longSMA)
-                    .multipliedBy(DecimalNum.valueOf(100));
-        }
-        if (diff.isGreaterThan(DecimalNum.valueOf(1.0))) return "TRENDING";
-
+        double smaDiffPercent = calculateSMADiffPercent(shortSMA, longSMA);
+        if (Math.abs(smaDiffPercent) > 1.0) return "TRENDING";
 
         return "RANGE";
     }
@@ -274,18 +332,13 @@ public class AnalysisService {
         log.trace("AnalysisService | Calculating trend strength");
         if (longSMA == null || longSMA.isZero()) return "WEAK";
 
-        double diff = shortSMA.minus(longSMA).abs()
-                .dividedBy(longSMA)
-                .multipliedBy(DecimalNum.valueOf(100))
-                .doubleValue();
-
+        double diff = Math.abs(calculateSMADiffPercent(shortSMA, longSMA));
         boolean strongRsi = rsi.doubleValue() < 30 || rsi.doubleValue() > 70;
 
         if (diff > 1.2 && strongRsi) return "STRONG";
         if (diff > 0.25) return "MODERATE";
         return "WEAK";
     }
-
 
     private String calculateLiquidity(BarSeries series) {
         log.trace("AnalysisService | Calculating liquidity");
@@ -330,25 +383,39 @@ public class AnalysisService {
     }
 
     private Integer calculateConfidenceScore(
-            Num rsi, Num shortSMA,
-            Num longSMA,
-            String trendStrength,
-            String volatility,
-            String liquidity
+            Num rsi, Num shortSMA, Num longSMA,
+            String trendStrength, String volatility,
+            String liquidity, String marketState
     ) {
         log.trace("AnalysisService | Calculating confidence score");
         int score = 50;
 
         double rv = rsi.doubleValue();
-        if (rv < 30 || rv > 70) score += 20;
-        else if (rv > 40 && rv < 60) score -= 10;
+        double smaDiff = calculateSMADiffPercent(shortSMA, longSMA);
+
+        if (rv < 30 || rv > 70) {
+            score += 15;
+            if ("LOW".equals(liquidity)) score -= 10;
+        } else if (rv > 40 && rv < 60) {
+            score -= 10;
+        }
 
         if ("STRONG".equals(trendStrength)) score += 15;
+        else if ("WEAK".equals(trendStrength)) score -= 5;
+
         if ("LOW".equals(volatility)) score += 10;
         if ("HIGH".equals(liquidity)) score += 10;
+        else if ("LOW".equals(liquidity)) score -= 15;
 
-        if (shortSMA.isGreaterThan(longSMA) && rv > 50) score += 10;
-        if (shortSMA.isLessThan(longSMA) && rv < 50) score += 10;
+        if (smaDiff > 0 && rv > 50) score += 10;
+        if (smaDiff < 0 && rv < 50) score += 10;
+
+        if (smaDiff > 0.5 && rv < 30) score -= 15;
+        if (smaDiff < -0.5 && rv > 70) score -= 15;
+
+        if ("CONSOLIDATION".equals(marketState) || "RANGE".equals(marketState)) {
+            score -= 10;
+        }
 
         return Math.min(100, score);
     }
@@ -360,6 +427,54 @@ public class AnalysisService {
         return new Num[]{up, lo};
     }
 
+    private double calculateSMADiffPercent(Num shortSMA, Num longSMA) {
+        if (longSMA == null || longSMA.isZero()) return 0.0;
+
+        return shortSMA.minus(longSMA)
+                .dividedBy(longSMA)
+                .multipliedBy(DecimalNum.valueOf(100))
+                .doubleValue();
+    }
+
+    private Details buildDetails(
+            String symbol,
+            BigDecimal price,
+            BigDecimal smaShort,
+            BigDecimal smaLong,
+            BigDecimal smaDiff,
+            BigDecimal rsi,
+            BigDecimal atr,
+            BigDecimal atrPercent,
+            BigDecimal upperThreshold,
+            BigDecimal lowerThreshold,
+            BigDecimal currentVolume,
+            BigDecimal averageVolume,
+            boolean volumeOk,
+            boolean shouldLog
+    ) {
+        log.trace("AnalysisService | Building details for {}", symbol);
+
+        if (shouldLog) {
+            log.info("AnalysisService | Symbol: {}, Price: {}, SMA{}: {}, SMA{}: {}, SMA Diff%: {}, RSI: {}, ATR: {}, ATR%: {}, Upper Threshold: {}, Lower Threshold: {}, Vol: {}/{}, Volume Ok: {}",
+                    symbol, price, shortTimePeriod, smaShort, longTimePeriod, smaLong, smaDiff, rsi, atr, atrPercent, upperThreshold, lowerThreshold, currentVolume, averageVolume, volumeOk);
+        }
+
+        return Details.builder()
+                .price(price)
+                .smaShort(smaShort)
+                .smaLong(smaLong)
+                .smaDiff(smaDiff)
+                .rsi(rsi)
+                .atr(atr)
+                .atrPercent(atrPercent)
+                .upperThreshold(upperThreshold)
+                .lowerThreshold(lowerThreshold)
+                .currentVolume(currentVolume)
+                .averageVolume(averageVolume)
+                .volumeOk(volumeOk)
+                .build();
+    }
+
     private Analysis buildAnalysis(
             String symbol,
             String action,
@@ -369,15 +484,14 @@ public class AnalysisService {
             String liquidity,
             String riskLevel,
             Integer confidenceScore,
+            Details details,
             boolean shouldLog
     ) {
         log.trace("AnalysisService | Building analysis for {}", symbol);
 
         if (shouldLog) {
-            String timestamp = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ssZ")
-                    .format(Instant.now().atZone(ZoneOffset.UTC));
-            log.info("AnalysisService | Symbol: {}, Action: {}, Market: {}, Volatility: {}, Trend: {}, Liquidity: {}, Risk: {}, Confidence: {}%, Time: {}",
-                    symbol, action, marketState, volatility, trendStrength, liquidity, riskLevel, confidenceScore, timestamp);
+            log.info("AnalysisService | Symbol: {}, Action: {}, Market: {}, Volatility: {}, Trend: {}, Liquidity: {}, Risk: {}, Confidence: {}%",
+                    symbol, action, marketState, volatility, trendStrength, liquidity, riskLevel, confidenceScore);
         }
 
         return Analysis.builder()
@@ -389,6 +503,7 @@ public class AnalysisService {
                 .liquidity(liquidity)
                 .riskLevel(riskLevel)
                 .confidenceScore(confidenceScore)
+                .details(details)
                 .build();
     }
 
@@ -398,8 +513,16 @@ public class AnalysisService {
         Instant last = null;
 
         for (Candle c : candles) {
+            if (c.getOpenPrice() == null || c.getClosePrice() == null ||
+                    c.getHighPrice() == null || c.getLowPrice() == null ||
+                    c.getVolume() == null) {
+                log.warn("AnalysisService | Skipping invalid candle for {}: missing price data", c.getSymbol());
+                continue;
+            }
+
             Instant end = c.getCloseTime();
             if (last != null && !end.isAfter(last)) continue;
+
             bars.add(buildBar(c));
             last = end;
         }

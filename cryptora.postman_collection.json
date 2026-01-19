@@ -1,0 +1,35 @@
+{
+	"info": {
+		"_postman_id": "f39e3f6c-05a6-4617-8c1f-3c2ca81406a2",
+		"name": "cryptora",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "35145925"
+	},
+	"item": [
+		{
+			"name": "report",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8088/api/v1/report/asset=ton&duration=6h",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8088",
+					"path": [
+						"api",
+						"v1",
+						"report",
+						"asset=ton&duration=6h"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
