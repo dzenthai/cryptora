@@ -1,5 +1,5 @@
-![Java Version](https://img.shields.io/badge/Java-v23-red)
-![Repository Size](https://img.shields.io/github/repo-size/dzenthai/Cryptora-Analyze-Service?color=red)
+![Java Version](https://img.shields.io/badge/Java-v21-red)
+![Repository Size](https://img.shields.io/github/repo-size/dzenthai/cryptora?color=red)
 
 <div style="display: flex; flex-wrap: wrap; justify-content: center;">
     <img src="assets/binance-logo.png" style="width: 65px; height: 65px;" alt="">
@@ -52,7 +52,7 @@ these risks.
   comprehensive market overview.
 
 - **Automated Scheduling**: Configurable scheduler with retry mechanism ensures continuous data collection and analysis
-  every 60 seconds.
+  every n seconds.
 
 ---
 
@@ -115,16 +115,15 @@ generate trading signals. The analysis considers:
 
 In the example above:
 
-The analysis service evaluates BTC, ETH, and TON in real-time, displaying:
+The analysis evaluates BTC, ETH, and TON in real-time, displaying:
 
-- **Action**: Trading signal (BUY/SELL/HOLD)
+- **Action**: Trading signal (BUY/STRONG_BUY/SELL/STRONG_SELL/HOLD)
 - **Market State**: Current market phase
 - **Volatility**: Price volatility level
 - **Trend Strength**: Trend momentum assessment
 - **Liquidity**: Current trading volume status
 - **Risk Level**: Composite risk evaluation
 - **Confidence Score**: Signal reliability percentage
-- **Timestamp**: Analysis time in UTC
 
 ### **Statistical Reports API**
 
