@@ -30,7 +30,7 @@ these risks.
 - **Real-time Data Fetching**: Integrates with Binance API to retrieve live n-minute candlestick data for multiple
   cryptocurrencies with automatic deduplication.
 
-- **Historical Data Storage**: MongoDB stores complete price history.
+- **Historical Data Storage**: TimescaleDB stores complete price history.
 
 - **Advanced Technical Analysis**: Utilizes Ta4j library for well-established technical indicators provided by Ta4j:
     - **Moving Averages**: Configurable SMA periods for trend detection and crossover signals
@@ -62,7 +62,7 @@ these risks.
 
 - **Spring Boot**: Framework used for building the service.
 
-- **MongoDB**: A NoSQL database used for storing real-time cryptocurrency candles.
+- **TimescaleDB**: A SQL database (built on PostgreSQL) optimized for storing real-time cryptocurrency time-series data.
 
 - **Docker**: Containerization platform that helps package the application with its dependencies, ensuring consistent
   environments and simplifying deployment.
@@ -78,9 +78,6 @@ these risks.
 
 - **Binance Spot Connector 2.0.0**: Official Binance API client for accessing real-time market data and candlestick
   information
-
-- **Spring Boot Starter Data MongoDB**: MongoDB integration with repository abstraction and document mapping for
-  time-series data storage
 
 - **Gson**: Google's JSON serialization/deserialization library for parsing API responses
 
@@ -225,33 +222,18 @@ GET http://localhost:8088/api/v1/report/asset=btc&duration=6h
 - **Total**: Cumulative volume and amount
 - **Info**: Metadata including candle count, time range, and interval duration
 
-### **Storing cryptocurrency data in a MongoDB**
+### **Storing cryptocurrency data in TimescaleDB**
 
-After successfully retrieving data from the Binance API, all cryptocurrency information is stored in MongoDB.
+After successfully retrieving data from the Binance API, all cryptocurrency information is stored in TimescaleDB.
 
-```json
-  {
-  "_id": {
-    "$oid": "696d9ccd0ae15d42640ad8bd"
-  },
-  "_class": "com.dzenthai.cryptora.model.entity.Candle",
-  "amount": "498124.35085260",
-  "closeTime": {
-    "$date": "2026-01-18T18:35:59.999Z"
-  },
-  "close_price": "95359.47000000",
-  "high_price": "95376.44000000",
-  "low_price": "95335.41000000",
-  "openTime": {
-    "$date": "2026-01-18T18:35:00.000Z"
-  },
-  "open_price": "95376.43000000",
-  "symbol": "BTCUSDT",
-  "timePeriod": "PT59.999S",
-  "trades": 2305,
-  "volume": "5.22394000"
-}
-```
+| symbol  | close\_time                       | open\_time                        | open\_price | close\_price | high\_price | low\_price | volume  | amount         | trades |
+|:--------|:----------------------------------|:----------------------------------|:------------|:-------------|:------------|:-----------|:--------|:---------------|:-------|
+| ETHUSDT | 2026-01-19 16:39:59.999000 +00:00 | 2026-01-19 16:39:00.000000 +00:00 | 3219.52     | 3218.98      | 3219.94     | 3218.62    | 94.5675 | 304446.538688  | 3240   |
+| BTCUSDT | 2026-01-19 16:39:59.999000 +00:00 | 2026-01-19 16:39:00.000000 +00:00 | 93234.41    | 93229.08     | 93234.41    | 93222.35   | 2.20986 | 206020.9851719 | 890    |
+| ETHUSDT | 2026-01-19 16:40:59.999000 +00:00 | 2026-01-19 16:40:00.000000 +00:00 | 3218.98     | 3217.48      | 3218.99     | 3217.47    | 65.0898 | 209477.046718  | 1918   |
+| BTCUSDT | 2026-01-19 16:40:59.999000 +00:00 | 2026-01-19 16:40:00.000000 +00:00 | 93229.08    | 93191.96     | 93229.09    | 93191.96   | 2.90681 | 270936.8196032 | 1487   |
+| ETHUSDT | 2026-01-19 16:41:59.999000 +00:00 | 2026-01-19 16:41:00.000000 +00:00 | 3217.47     | 3218.26      | 3218.36     | 3216.74    | 62.8779 | 202308.107113  | 3063   |
+| BTCUSDT | 2026-01-19 16:41:59.999000 +00:00 | 2026-01-19 16:41:00.000000 +00:00 | 93191.96    | 93200.6      | 93200.6     | 93173.89   | 4.7     | 437983.9348559 | 2004   |
 
 In the example above:
 

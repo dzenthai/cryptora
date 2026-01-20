@@ -3,33 +3,31 @@ package com.dzenthai.cryptora.model.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
-import java.math.BigDecimal;
-
 
 @Builder
 public record Indicator(
         @JsonProperty("price")
-        BigDecimal price,
+        double price,
         @JsonProperty("sma_short")
-        BigDecimal smaShort,
+        double smaShort,
         @JsonProperty("sma_long")
-        BigDecimal smaLong,
+        double smaLong,
         @JsonProperty("sma_diff")
-        BigDecimal smaDiff,
+        double smaDiff,
         @JsonProperty("rsi")
-        BigDecimal rsi,
+        double rsi,
         @JsonProperty("atr")
-        BigDecimal atr,
+        double atr,
         @JsonProperty("atr_percent")
-        BigDecimal atrPercent,
+        double atrPercent,
         @JsonProperty("upper_threshold")
-        BigDecimal upperThreshold,
+        double upperThreshold,
         @JsonProperty("lower_threshold")
-        BigDecimal lowerThreshold,
+        double lowerThreshold,
         @JsonProperty("current_volume")
-        BigDecimal currentVolume,
+        double currentVolume,
         @JsonProperty("average_volume")
-        BigDecimal averageVolume,
+        double averageVolume,
         @JsonProperty("volume_ok")
         boolean volumeOk
 ) {

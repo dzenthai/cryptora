@@ -4,10 +4,6 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.6'
 }
 
-ext {
-	springAiVersion = "1.0.0-M4"
-}
-
 group = 'com.dzenthai'
 version = '0.0.1-SNAPSHOT'
 
@@ -25,21 +21,16 @@ configurations {
 
 repositories {
 	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
 	implementation 'org.ta4j:ta4j-core:0.22.0'
 	implementation 'io.github.binance:binance-spot:2.0.0'
 	implementation 'com.google.code.gson:gson'
-	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-    compileOnly 'org.projectlombok:lombok'
+	implementation 'org.liquibase:liquibase-core'
+	runtimeOnly 'org.postgresql:postgresql'
+	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-}
-
-dependencyManagement {
-	imports {
-		mavenBom "org.springframework.ai:spring-ai-bom:$springAiVersion"
-	}
 }

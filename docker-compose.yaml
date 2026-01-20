@@ -1,10 +1,15 @@
 services:
-  mongo_db:
-    container_name: mongo
-    image: mongo:latest
+  timescaledb:
+    container_name: timescaledb
+    image: timescale/timescaledb:latest-pg16
     restart: on-failure
+    environment:
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: default
+      TS_TUNE_PARAMETER: on
     ports:
-      - '27017:27017'
+      - "5432:5432"
 
   app:
     container_name: cryptora
@@ -14,4 +19,4 @@ services:
     ports:
       - '8088:8088'
     depends_on:
-      - mongo_db
+      - timescaledb

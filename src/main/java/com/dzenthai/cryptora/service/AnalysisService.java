@@ -18,10 +18,12 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 
@@ -92,9 +94,10 @@ public class AnalysisService {
 
     private Analysis analyzeSymbolCandles(String baseAsset, List<Candle> candles, boolean shouldLog) {
         log.debug("AnalysisService | Analyzing symbol candles, base asset: {}", baseAsset);
-        String symbol = baseAsset.toUpperCase().endsWith("USDT")
-                ? baseAsset.toUpperCase()
-                : baseAsset.toUpperCase() + "USDT";
+        String symbol = (baseAsset.endsWith("USDT")
+                ? baseAsset
+                : baseAsset + "USDT")
+                .toUpperCase(Locale.ROOT);
 
         var sortedCandles = candles.stream()
                 .sorted(Comparator.comparing(Candle::getOpenTime))
@@ -448,13 +451,6 @@ public class AnalysisService {
         Instant last = null;
 
         for (Candle c : candles) {
-            if (c.getOpenPrice() == null || c.getClosePrice() == null ||
-                    c.getHighPrice() == null || c.getLowPrice() == null ||
-                    c.getVolume() == null) {
-                log.warn("AnalysisService | Skipping invalid candle for {}: missing price data", c.getSymbol());
-                continue;
-            }
-
             Instant end = c.getCloseTime();
             if (last != null && !end.isAfter(last)) continue;
 
@@ -472,7 +468,10 @@ public class AnalysisService {
     private Bar buildBar(Candle candle) {
         log.trace("AnalysisService | Building bar, symbol: {}", candle.getSymbol());
         return new BaseBar(
-                candle.getTimePeriod(),
+                Duration.between(
+                        candle.getOpenTime(),
+                        candle.getCloseTime()
+                ),
                 candle.getOpenTime(),
                 candle.getCloseTime(),
                 DecimalNum.valueOf(candle.getOpenPrice()),

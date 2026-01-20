@@ -7,11 +7,14 @@ spring:
   application:
     name: cryptora
 
-  data:
-    mongodb:
-      host: host.docker.internal
-      port: 27017
-      database: binance
+  datasource:
+    username: dbuser
+    password: 1234
+    url: jdbc:postgresql://host.docker.internal:5432/default
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+    enabled: true
 
 cryptora:
   short:

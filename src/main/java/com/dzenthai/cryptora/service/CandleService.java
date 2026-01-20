@@ -7,10 +7,10 @@ import com.dzenthai.cryptora.repository.CandleRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 
 @Slf4j
@@ -29,35 +29,30 @@ public class CandleService {
     }
 
     public void saveAllCandles(String symbol, KlinesResponse klinesResponse) {
-        log.debug("CandleService | Saving candle for symbol: {}, kline response: {}", symbol, klinesResponse);
         if (klinesResponse == null || klinesResponse.isEmpty()) return;
 
-        String saveSymbol = symbol.endsWith("USDT") ? symbol : symbol + "USDT";
-        int count = 0;
+        String saveSymbol = (symbol.endsWith("USDT") ? symbol : symbol + "USDT").toUpperCase(Locale.ROOT);
 
+        List<Candle> toInsert = new ArrayList<>(klinesResponse.size());
         for (KlinesItem item : klinesResponse) {
-            long closeTime = Long.parseLong(item.get(6));
-            Instant closeInstant = Instant.ofEpochMilli(closeTime);
+            Candle candle = buildCandle(saveSymbol, item);
+            toInsert.add(candle);
+        }
+        candleRepository.saveAll(toInsert);
 
-            if (!candleRepository.existsBySymbolAndCloseTime(saveSymbol, closeInstant)) {
-                Candle candle = buildCandle(saveSymbol, item);
-                candleRepository.save(candle);
-                count++;
-            }
-        }
-        if (count > 0) {
-            log.debug("CandleService | Saved {} new bars for {}", count, saveSymbol);
-        }
+        log.debug("CandleService | Attempted to insert {} bars for {}", toInsert.size(), saveSymbol);
     }
 
     public List<Candle> getCandleBySymbol(String symbol) {
-        String searchSymbol = symbol.endsWith("USDT") ? symbol : symbol + "USDT";
+        String searchSymbol = (symbol.endsWith("USDT") ? symbol : symbol + "USDT")
+                .toUpperCase(Locale.ROOT);
         log.debug("CandleService | Receiving candle for: {}", searchSymbol);
         return candleRepository.findBySymbolIgnoreCase(searchSymbol);
     }
 
     private Candle buildCandle(String symbol, KlinesItem kline) {
-        log.debug("CandleService | Parsing and converting kline (candle) json for {} into object", symbol);
+        var savingSymbol = symbol.toUpperCase(Locale.ROOT);
+        log.debug("CandleService | Parsing and converting kline (candle) json for {} into object", savingSymbol);
         long openTime = Long.parseLong(kline.get(0));
         long closeTime = Long.parseLong(kline.get(6));
 
@@ -65,17 +60,16 @@ public class CandleService {
         Instant endTime = Instant.ofEpochMilli(closeTime);
 
         return Candle.builder()
-                .symbol(symbol)
+                .symbol(savingSymbol)
                 .openTime(beginTime)
                 .closeTime(endTime)
-                .openPrice(new BigDecimal(kline.get(1)))
-                .highPrice(new BigDecimal(kline.get(2)))
-                .lowPrice(new BigDecimal(kline.get(3)))
-                .closePrice(new BigDecimal(kline.get(4)))
-                .volume(new BigDecimal(kline.get(5)))
-                .amount(new BigDecimal(kline.get(7)))
+                .openPrice(Double.parseDouble(kline.get(1)))
+                .closePrice(Double.parseDouble(kline.get(4)))
+                .highPrice(Double.parseDouble(kline.get(2)))
+                .lowPrice(Double.parseDouble(kline.get(3)))
+                .volume(Double.parseDouble(kline.get(5)))
+                .amount(Double.parseDouble(kline.get(7)))
                 .trades(Long.parseLong(kline.get(8)))
-                .timePeriod(Duration.between(beginTime, endTime))
                 .build();
     }
 }

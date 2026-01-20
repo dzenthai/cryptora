@@ -2,55 +2,31 @@ package com.dzenthai.cryptora.model.entity;
 
 import lombok.Builder;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 
 
 @Data
 @Builder
-@Document(collection = "candles")
 public class Candle {
 
-    @Id
-    private String id;
-
-    @Indexed
-    @Field(name = "symbol")
     private String symbol;
 
-    @Field(name = "open_price")
-    private BigDecimal openPrice;
+    private double openPrice;
 
-    @Field(name = "high_price")
-    private BigDecimal highPrice;
+    private double closePrice;
 
-    @Field(name = "low_price")
-    private BigDecimal lowPrice;
+    private double highPrice;
 
-    @Field(name = "close_price")
-    private BigDecimal closePrice;
+    private double lowPrice;
 
-    @Field(name = "volume")
-    private BigDecimal volume;
+    private double volume;
 
-    @Field(name = "amount")
-    private BigDecimal amount;
+    private double amount;
 
-    @Field(name = "trades")
-    private Long trades;
+    private long trades;
 
-    @Field(name = "openTime")
     private Instant openTime;
 
-    @Field(name = "closeTime")
     private Instant closeTime;
-
-    @Field(name = "timePeriod")
-    private Duration timePeriod;
 }

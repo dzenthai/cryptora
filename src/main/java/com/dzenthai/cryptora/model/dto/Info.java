@@ -10,7 +10,7 @@ import java.time.Instant;
 @Builder
 public record Info(
         @JsonProperty("entries_count")
-        Integer entriesCount,
+        int entriesCount,
         @JsonProperty("beginTime")
         Instant beginTime,
         @JsonProperty("endTime")
