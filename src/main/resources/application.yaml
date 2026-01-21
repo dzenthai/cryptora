@@ -17,21 +17,66 @@ spring:
     enabled: true
 
 cryptora:
-  short:
-    time:
-      period: 9
-  long:
-    time:
-      period: 21
+  short-time:
+    period: 9
+  long-time:
+    period: 21
   atr:
     period: 14
-    multiplier: 2.0
+    multiplier:
+      strong: 1.2
+      weak: 2.0
   rsi:
     period: 14
     overbought: 70
     oversold: 30
   volume:
     period: 20
+
+  tuning:
+    thresholds:
+      min-safe-value: 1e-6
+    series:
+      max-bars: 500
+    market-state:
+      lookback-bars: 50
+      compression-pct: 0.004
+      breakout-eps-pct: 0.002
+    sma:
+      diff:
+        trending-pct: 1.0
+        moderate-pct: 0.25
+        strong-pct: 1.2
+        signal-pct: 0.5
+    score-thresholds:
+      strong: 4
+      strong-prev: 2
+      buy: 2
+      buy-prev: 1
+      breakout: 3
+    liquidity:
+      local-high: 1.5
+      global-high: 1.0
+      local-low: 0.7
+      global-low: 0.5
+    volume:
+      min-relative-to-avg: 0.5
+      window-lookback: 20
+    volatility:
+      pct:
+        low: 1.0
+        medium: 3.0
+    confidence:
+      base: 50
+      rsi-extreme: 15
+      rsi-middle-penalty: -10
+      trend-strong: 15
+      trend-weak: -5
+      volatility-low-bonus: 10
+      liquidity-high-bonus: 10
+      liquidity-low-penalty: -15
+      sma-rsi-agreement-bonus: 10
+      sma-rsi-conflict-penalty: -15
 
 server:
   port: 8088

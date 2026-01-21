@@ -302,7 +302,9 @@ cryptora:
       period: 21    # Slow MA; provides the trend baseline for crossover signals
   atr:
     period: 14      # Volatility window; captures the average price swing range
-    multiplier: 2.0 # Dynamic filter; higher = more noise protection, lower = aggressive entries
+    multiplier:     # Dynamic filter; higher = more noise protection, lower = aggressive entries
+      strong: 1.2
+      weak: 2.0 
   rsi:
     period: 14      # Momentum window; standard period to identify market exhaustion
     overbought: 70  # Sell pressure zone; higher = waits for extreme greed before exiting

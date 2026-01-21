@@ -22,47 +22,52 @@ public class CandleTimescaleRepository implements CandleRepository {
         this.jdbc = jdbc;
     }
 
-    private final RowMapper<Candle> rowMapper = (rs, rowNum) -> Candle.builder()
-            .symbol(rs.getString("symbol"))
-            .openTime(rs.getTimestamp("open_time") != null ? rs.getTimestamp("open_time").toInstant() : null)
-            .closeTime(rs.getTimestamp("close_time") != null ? rs.getTimestamp("close_time").toInstant() : null)
-            .openPrice(rs.getDouble("open_price"))
-            .closePrice(rs.getDouble("close_price"))
-            .highPrice(rs.getDouble("high_price"))
-            .lowPrice(rs.getDouble("low_price"))
-            .volume(rs.getDouble("volume"))
-            .amount(rs.getDouble("amount"))
-            .trades(rs.getLong("trades"))
-            .build();
+    private final RowMapper<Candle> rowMapper = (rs, rowNum) ->
+            Candle.builder()
+                    .symbol(rs.getString("symbol"))
+                    .openTime(rs.getTimestamp("open_time") != null
+                            ? rs.getTimestamp("open_time").toInstant()
+                            : null)
+                    .closeTime(rs.getTimestamp("close_time") != null
+                            ? rs.getTimestamp("close_time").toInstant()
+                            : null)
+                    .openPrice(rs.getDouble("open_price"))
+                    .closePrice(rs.getDouble("close_price"))
+                    .highPrice(rs.getDouble("high_price"))
+                    .lowPrice(rs.getDouble("low_price"))
+                    .volume(rs.getDouble("volume"))
+                    .amount(rs.getDouble("amount"))
+                    .trades(rs.getLong("trades"))
+                    .build();
 
     @Override
     public List<Candle> findAll() {
         var sql = """
-            SELECT * FROM public.candles
-            WHERE close_time >= now() - interval '24 hours'
-            ORDER BY close_time
-            """;
+                SELECT * FROM public.candles
+                WHERE close_time >= now() - interval '24 hours'
+                ORDER BY close_time
+                """;
         return jdbc.query(sql, rowMapper);
     }
 
     @Override
     public List<Candle> findBySymbolIgnoreCase(String symbol) {
         var sql = """
-            SELECT * FROM public.candles
-            WHERE lower(symbol) = lower(?) AND close_time >= now() - interval '6 hours'
-            ORDER BY close_time
-            """;
+                SELECT * FROM public.candles
+                WHERE lower(symbol) = lower(?) AND close_time >= now() - interval '6 hours'
+                ORDER BY close_time
+                """;
         return jdbc.query(sql, rowMapper, symbol);
     }
 
     @Override
     public void saveAll(List<Candle> candles) {
         var sql = """
-            INSERT INTO public.candles
-            (symbol, open_price, close_price, high_price, low_price, volume, amount, trades, open_time, close_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (symbol, close_time) DO NOTHING
-            """;
+                INSERT INTO public.candles
+                (symbol, open_price, close_price, high_price, low_price, volume, amount, trades, open_time, close_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (symbol, close_time) DO NOTHING
+                """;
         jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
             public void setValues(@NotNull PreparedStatement ps, int i) throws SQLException {
