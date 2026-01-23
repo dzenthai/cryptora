@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.Map;
@@ -28,6 +29,11 @@ public class CryptoraExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class})
     public ResponseEntity<?> handleIllegalArgumentException(IllegalArgumentException e) {
+        return buildExceptionData(e, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class})
+    public ResponseEntity<?> handleNoResourceFoundException(NoResourceFoundException e) {
         return buildExceptionData(e, HttpStatus.BAD_REQUEST);
     }
 

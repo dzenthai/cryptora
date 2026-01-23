@@ -44,7 +44,6 @@ public class CandleTimescaleRepository implements CandleRepository {
     public List<Candle> findAll() {
         var sql = """
                 SELECT * FROM public.candles
-                WHERE close_time >= now() - interval '24 hours'
                 ORDER BY close_time
                 """;
         return jdbc.query(sql, rowMapper);
@@ -54,7 +53,7 @@ public class CandleTimescaleRepository implements CandleRepository {
     public List<Candle> findBySymbolIgnoreCase(String symbol) {
         var sql = """
                 SELECT * FROM public.candles
-                WHERE lower(symbol) = lower(?) AND close_time >= now() - interval '6 hours'
+                WHERE lower(symbol) = lower(?)
                 ORDER BY close_time
                 """;
         return jdbc.query(sql, rowMapper, symbol);

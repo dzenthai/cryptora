@@ -2,6 +2,7 @@ package com.dzenthai.cryptora.mapper;
 
 import com.dzenthai.cryptora.model.dto.Analysis;
 import com.dzenthai.cryptora.model.dto.Indicator;
+import com.dzenthai.cryptora.model.enums.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -12,13 +13,13 @@ public class AnalysisMapper {
 
     public Analysis mapToAnalysis(
             String symbol,
-            String action,
-            String marketState,
-            String volatility,
-            String trendStrength,
-            String liquidity,
-            String riskLevel,
-            Integer confidenceScore,
+            Action action,
+            MarketState marketState,
+            Volatility volatility,
+            TrendStrength trendStrength,
+            Liquidity liquidity,
+            RiskLevel riskLevel,
+            int confidenceScore,
             Indicator details,
             boolean shouldLog
     ) {

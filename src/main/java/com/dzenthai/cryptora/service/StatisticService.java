@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.OptionalDouble;
@@ -24,7 +25,10 @@ public class StatisticService {
 
     private final CandleService candleService;
 
-    public StatisticService(AnalysisService analysisService, CandleService candleService) {
+    public StatisticService(
+            AnalysisService analysisService,
+            CandleService candleService
+    ) {
         this.analysisService = analysisService;
         this.candleService = candleService;
     }
@@ -36,12 +40,17 @@ public class StatisticService {
             throw new NoSuchElementException("No data found, base asset: %s, duration: %s"
                     .formatted(baseAsset, duration));
         }
-
         try {
             log.debug("StatisticService | Filtering list of candles by duration, base asset: {}, duration: {}",
                     baseAsset, duration);
-            var endTime = getEndTime(candles);
-            var beginTime = getBeginTime(candles, duration);
+
+            Instant beginTime = duration == null || duration.isBlank()
+                    ? getBeginTime(candles)
+                    : getBeginTime(candles, duration);
+            log.debug("StatisticService | Statistic begin time: {}", beginTime);
+
+            Instant endTime = getEndTime(candles);
+            log.debug("StatisticService | Statistic end time: {}", endTime);
 
             var filteredCandles = candles.stream()
                     .filter(q -> !q.getCloseTime().isBefore(beginTime) && !q.getOpenTime().isAfter(endTime))
@@ -119,7 +128,11 @@ public class StatisticService {
     private Current getCurrent(List<Candle> candles) {
         log.trace("StatisticService | Receiving candle current values");
         if (candles == null || candles.isEmpty()) return Current.builder().build();
-        var lastCandle = candles.getLast();
+
+        var lastCandle = candles.stream()
+                .max(Comparator.comparing(Candle::getCloseTime))
+                .orElseThrow();
+
         return Current.builder()
                 .openPrice(lastCandle.getOpenPrice())
                 .closePrice(lastCandle.getClosePrice())
@@ -196,19 +209,30 @@ public class StatisticService {
         return candles.getLast().getCloseTime();
     }
 
-    private Instant getBeginTime(List<Candle> candles, String duration) {
+    private Instant getBeginTime(List<Candle> candles) {
         log.trace("StatisticService | Receiving candle begin time");
+        if (candles == null || candles.isEmpty())
+            throw new NoSuchElementException("No candles available to determine begin time");
+        return candles.getFirst().getOpenTime();
+    }
+
+    private Instant getBeginTime(List<Candle> candles, String duration) {
+        log.trace("StatisticService | Receiving candle begin time with duration");
         var endTime = getEndTime(candles);
 
         long value = Long.parseLong(duration.substring(0, duration.length() - 1));
         String unit = duration.substring(duration.length() - 1).toLowerCase();
 
-        return switch (unit) {
+        Instant earliestAvailable = candles.getFirst().getOpenTime();
+
+        Instant requestedBegin = switch (unit) {
             case "d" -> endTime.minus(value, ChronoUnit.DAYS);
             case "h" -> endTime.minus(value, ChronoUnit.HOURS);
             case "m" -> endTime.minus(value, ChronoUnit.MINUTES);
             case "s" -> endTime.minus(value, ChronoUnit.SECONDS);
             default -> throw new IllegalArgumentException("Unknown duration unit: %s".formatted(unit));
         };
+
+        return requestedBegin.isBefore(earliestAvailable) ? earliestAvailable : requestedBegin;
     }
 }

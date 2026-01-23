@@ -1,5 +1,6 @@
 package com.dzenthai.cryptora.model.dto;
 
+import com.dzenthai.cryptora.model.enums.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
@@ -9,19 +10,19 @@ public record Analysis(
         @JsonProperty("symbol")
         String symbol,
         @JsonProperty("action")
-        String action,
+        Action action,
         @JsonProperty("market_state")
-        String marketState,
+        MarketState marketState,
         @JsonProperty("volatility")
-        String volatility,
+        Volatility volatility,
         @JsonProperty("trend_strength")
-        String trendStrength,
+        TrendStrength trendStrength,
         @JsonProperty("liquidity")
-        String liquidity,
+        Liquidity liquidity,
         @JsonProperty("risk_level")
-        String riskLevel,
+        RiskLevel riskLevel,
         @JsonProperty("confidence_score")
-        Integer confidenceScore,
+        int confidenceScore,
         @JsonProperty("indicators")
         Indicator details
 ) {

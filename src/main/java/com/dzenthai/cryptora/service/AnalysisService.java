@@ -5,6 +5,7 @@ import com.dzenthai.cryptora.mapper.AnalysisMapper;
 import com.dzenthai.cryptora.mapper.IndicatorMapper;
 import com.dzenthai.cryptora.model.dto.Analysis;
 import com.dzenthai.cryptora.model.entity.Candle;
+import com.dzenthai.cryptora.model.enums.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.Bar;
@@ -91,7 +92,7 @@ public class AnalysisService {
         if (series.getBarCount() < requiredBars) {
             return Analysis.builder()
                     .symbol(symbol)
-                    .action("INSUFFICIENT_DATA")
+                    .action(Action.INSUFFICIENT_DATA)
                     .build();
         }
 
@@ -119,12 +120,12 @@ public class AnalysisService {
         double recentAvgVol = calculateRecentAvgVolume(series);
         double currVol = series.getLastBar().getVolume().doubleValue();
 
-        String volatility = calculateVolatility(atrVal, price);
-        String trendStrength = calculateTrendStrength(shortSMA, longSMA, rsiVal);
-        String liquidity = calculateLiquidity(series);
+        Volatility volatility = calculateVolatility(atrVal, price);
+        TrendStrength trendStrength = calculateTrendStrength(shortSMA, longSMA, rsiVal);
+        Liquidity liquidity = calculateLiquidity(series);
 
         Num[] thresholds;
-        if ("STRONG".equals(trendStrength)) {
+        if (trendStrength.equals(TrendStrength.STRONG)) {
             thresholds = calculateThresholds(longSMA, atrVal, cryptoraProperties.atr().multiplier().strong());
         } else {
             thresholds = calculateThresholds(longSMA, atrVal, cryptoraProperties.atr().multiplier().weak());
@@ -132,10 +133,10 @@ public class AnalysisService {
         Num thrUp = thresholds[0];
         Num thrLo = thresholds[1];
 
-        String marketState = calculateMarketState(price, shortSMA, longSMA, thrUp, thrLo, volatility, liquidity, series);
-        String riskLevel = calculateRiskLevel(volatility, trendStrength, liquidity);
+        MarketState marketState = calculateMarketState(price, shortSMA, longSMA, volatility, liquidity, series);
+        RiskLevel riskLevel = calculateRiskLevel(volatility, trendStrength, liquidity);
 
-        var confidenceScore = calculateConfidenceScore(rsiVal, shortSMA, longSMA, trendStrength, volatility, liquidity, marketState);
+        int confidenceScore = calculateConfidenceScore(rsiVal, shortSMA, longSMA, trendStrength, volatility, liquidity, marketState);
 
         int scoreNow = calculateScore(price, shortSMA, longSMA, rsiVal, thrUp, thrLo, liquidity);
         int scorePrev = calculateScore(
@@ -148,7 +149,7 @@ public class AnalysisService {
                 liquidity
         );
 
-        var action = determineAction(scoreNow, scorePrev, currVol, recentAvgVol, marketState, trendStrength, liquidity);
+        Action action = determineAction(scoreNow, scorePrev, currVol, recentAvgVol, marketState, trendStrength, liquidity);
 
         double smaDiff = calculateSMADiffPercent(shortSMA, longSMA);
         boolean volumeOk = currVol >= Math.max(recentAvgVol, cryptoraProperties.tuning().thresholds().minSafeValue())
@@ -187,16 +188,16 @@ public class AnalysisService {
         );
     }
 
-    private String determineAction(
+    private Action determineAction(
             int scoreNow, int scorePrev, double currVol, double avgVol,
-            String marketState, String trendStrength, String liquidity) {
+            MarketState marketState, TrendStrength trendStrength, Liquidity liquidity) {
 
         log.trace("AnalysisService | Determining action");
         double safeAvgVol = Math.max(avgVol, cryptoraProperties.tuning().thresholds().minSafeValue());
 
         boolean volumeOk = currVol >= safeAvgVol * cryptoraProperties.tuning().volume().minRelativeToAvg();
-        boolean liquidityHighOrNormal = "HIGH".equals(liquidity) || "NORMAL".equals(liquidity);
-        boolean liquidityLow = "LOW".equals(liquidity);
+        boolean liquidityHighOrNormal = liquidity.equals(Liquidity.HIGH) || liquidity.equals(Liquidity.NORMAL);
+        boolean liquidityLow = liquidity.equals(Liquidity.LOW);
 
         int breakoutThreshold = cryptoraProperties.tuning().scoreThresholds().breakout();
         int strong = cryptoraProperties.tuning().scoreThresholds().strong();
@@ -204,42 +205,42 @@ public class AnalysisService {
         int buy = cryptoraProperties.tuning().scoreThresholds().buy();
         int buyPrev = cryptoraProperties.tuning().scoreThresholds().buyPrev();
 
-        if (("CONSOLIDATION".equals(marketState) || "RANGE".equals(marketState))
-                && "WEAK".equals(trendStrength)) {
+        if (marketState.equals(MarketState.CONSOLIDATION) || marketState.equals(MarketState.RANGE)
+                && trendStrength.equals(TrendStrength.WEAK)) {
             if (Math.abs(scoreNow) < 3 || liquidityLow) {
-                return "HOLD";
+                return Action.HOLD;
             }
         }
 
-        if ("BREAKOUT_ATTEMPT".equals(marketState)) {
-            if (scoreNow >= breakoutThreshold && volumeOk && liquidityHighOrNormal) return "BUY";
-            if (scoreNow <= -breakoutThreshold && volumeOk && liquidityHighOrNormal) return "SELL";
-            return "HOLD";
+        if (marketState.equals(MarketState.BREAKOUT_ATTEMPT)) {
+                if (scoreNow >= breakoutThreshold && volumeOk && liquidityHighOrNormal) return Action.BUY;
+            if (scoreNow <= -breakoutThreshold && volumeOk && liquidityHighOrNormal) return Action.SELL;
+            return Action.HOLD;
         }
 
-        if (scoreNow >= strong && scorePrev >= strongPrev && volumeOk && liquidityHighOrNormal) return "STRONG_BUY";
-        if (scoreNow <= -strong && scorePrev <= -strongPrev && volumeOk && liquidityHighOrNormal) return "STRONG_SELL";
+        if (scoreNow >= strong && scorePrev >= strongPrev && volumeOk && liquidityHighOrNormal) return Action.STRONG_BUY;
+        if (scoreNow <= -strong && scorePrev <= -strongPrev && volumeOk && liquidityHighOrNormal) return Action.STRONG_SELL;
 
         if (scoreNow >= buy) {
             if (scorePrev >= buyPrev) {
-                if (liquidityLow && !volumeOk) return "HOLD";
-                return "BUY";
+                if (liquidityLow && !volumeOk) return Action.HOLD;
+                return Action.BUY;
             }
-            if (volumeOk && liquidityHighOrNormal) return "BUY";
+            if (volumeOk && liquidityHighOrNormal) return Action.BUY;
         }
         if (scoreNow <= -buy) {
             if (scorePrev <= -buyPrev) {
-                if (liquidityLow && !volumeOk) return "HOLD";
-                return "SELL";
+                if (liquidityLow && !volumeOk) return Action.HOLD;
+                return Action.SELL;
             }
-            if (volumeOk && liquidityHighOrNormal) return "SELL";
+            if (volumeOk && liquidityHighOrNormal) return Action.SELL;
         }
-        return "HOLD";
+        return Action.HOLD;
     }
 
     private int calculateScore(
             Num price, Num shortSMA, Num longSMA,
-            Num rsi, Num thrUp, Num thrLo, String liquidity) {
+            Num rsi, Num thrUp, Num thrLo, Liquidity liquidity) {
         log.trace("AnalysisService | Calculating score");
         int score = 0;
 
@@ -261,7 +262,7 @@ public class AnalysisService {
             }
         }
 
-        boolean highVolume = "HIGH".equals(liquidity) || "NORMAL".equals(liquidity);
+        boolean highVolume = liquidity.equals(Liquidity.HIGH) || liquidity.equals(Liquidity.NORMAL);
 
         if (price.isGreaterThan(thrUp)) {
             if (highVolume && smaDiffPercent > 0) {
@@ -279,7 +280,7 @@ public class AnalysisService {
             }
         }
 
-        if ("LOW".equals(liquidity)) score -= 2;
+        if (liquidity.equals(Liquidity.LOW)) score -= 2;
 
         return score;
     }
@@ -294,14 +295,12 @@ public class AnalysisService {
         return sum / bars;
     }
 
-    private String calculateMarketState(
+    private MarketState calculateMarketState(
             Num price,
             Num shortSMA,
             Num longSMA,
-            Num thrUp,
-            Num thrLo,
-            String volatility,
-            String liquidity,
+            Volatility volatility,
+            Liquidity liquidity,
             BarSeries series
     ) {
         log.trace("AnalysisService | Calculating market state");
@@ -319,44 +318,39 @@ public class AnalysisService {
 
         boolean compressed = range.isLessThan(compression);
 
-        Num eps = price.multipliedBy(DecimalNum.valueOf(cryptoraProperties.tuning().marketState().breakoutEpsPct()));
-        boolean nearBreakout =
-                price.isGreaterThan(thrUp.minus(eps)) ||
-                        price.isLessThan(thrLo.plus(eps));
-
-        if (nearBreakout && "HIGH".equals(liquidity)) return "BREAKOUT_ATTEMPT";
-        if (compressed && "LOW".equals(volatility)) return "CONSOLIDATION";
+        if (liquidity.equals(Liquidity.HIGH)) return MarketState.BREAKOUT_ATTEMPT;
+        if (compressed && volatility.equals(Volatility.LOW)) return MarketState.CONSOLIDATION;
 
         double smaDiffPercent = calculateSMADiffPercent(shortSMA, longSMA);
-        if (Math.abs(smaDiffPercent) > cryptoraProperties.tuning().sma().diff().trendingPct()) return "TRENDING";
+        if (Math.abs(smaDiffPercent) > cryptoraProperties.tuning().sma().diff().trendingPct()) return MarketState.TRENDING;
 
-        return "RANGE";
+        return MarketState.RANGE;
     }
 
-    private String calculateVolatility(Num atr, Num price) {
+    private Volatility calculateVolatility(Num atr, Num price) {
         log.trace("AnalysisService | Calculating volatility");
         double p = atr.dividedBy(price).multipliedBy(DecimalNum.valueOf(100)).doubleValue();
-        if (p < cryptoraProperties.tuning().volatility().pct().low()) return "LOW";
-        if (p < cryptoraProperties.tuning().volatility().pct().medium()) return "MEDIUM";
-        return "HIGH";
+        if (p < cryptoraProperties.tuning().volatility().pct().low()) return Volatility.LOW;
+        if (p < cryptoraProperties.tuning().volatility().pct().medium()) return Volatility.MEDIUM;
+        return Volatility.HIGH;
     }
 
-    private String calculateTrendStrength(Num shortSMA, Num longSMA, Num rsi) {
+    private TrendStrength calculateTrendStrength(Num shortSMA, Num longSMA, Num rsi) {
         log.trace("AnalysisService | Calculating trend strength");
-        if (longSMA == null || longSMA.isZero()) return "WEAK";
+        if (longSMA == null || longSMA.isZero()) return TrendStrength.WEAK;
 
         double diff = Math.abs(calculateSMADiffPercent(shortSMA, longSMA));
         boolean strongRsi = rsi.doubleValue() < cryptoraProperties.rsi().oversold() || rsi.doubleValue() > cryptoraProperties.rsi().overbought();
 
-        if (diff > cryptoraProperties.tuning().sma().diff().strongPct() && strongRsi) return "STRONG";
-        if (diff > cryptoraProperties.tuning().sma().diff().moderatePct()) return "MODERATE";
-        return "WEAK";
+        if (diff > cryptoraProperties.tuning().sma().diff().strongPct() && strongRsi) return TrendStrength.STRONG;
+        if (diff > cryptoraProperties.tuning().sma().diff().moderatePct()) return TrendStrength.MODERATE;
+        return TrendStrength.WEAK;
     }
 
-    private String calculateLiquidity(BarSeries series) {
+    private Liquidity calculateLiquidity(BarSeries series) {
         log.trace("AnalysisService | Calculating liquidity");
         int barCount = series.getBarCount();
-        if (barCount < 2) return "LOW";
+        if (barCount < 2) return Liquidity.LOW;
 
         int windowLookback = Math.min(cryptoraProperties.tuning().volume().windowLookback(), barCount);
 
@@ -380,30 +374,30 @@ public class AnalysisService {
         boolean localLow = localRatio < cryptoraProperties.tuning().liquidity().localLow();
         boolean globalLow = globalRatio < cryptoraProperties.tuning().liquidity().globalLow();
         if (localLow && globalLow)
-            return "LOW";
+            return Liquidity.LOW;
         if (localRatio > cryptoraProperties.tuning().liquidity().localHigh() && globalRatio > cryptoraProperties.tuning().liquidity().globalHigh())
-            return "HIGH";
+            return Liquidity.HIGH;
         if (localLow || globalLow)
-            return "LOW";
+            return Liquidity.LOW;
 
-        return "NORMAL";
+        return Liquidity.NORMAL;
     }
 
-    private String calculateRiskLevel(String volatility, String trendStrength, String liquidity) {
+    private RiskLevel calculateRiskLevel(Volatility volatility, TrendStrength trendStrength, Liquidity liquidity) {
         log.trace("AnalysisService | Calculating risk level");
         int risk = 0;
-        if ("HIGH".equals(volatility)) risk += 3;
-        if ("WEAK".equals(trendStrength)) risk += 3;
-        if ("LOW".equals(liquidity)) risk += 3;
-        if (risk <= 3) return "LOW";
-        if (risk <= 6) return "MEDIUM";
-        return "HIGH";
+        if (volatility.equals(Volatility.HIGH)) risk += 3;
+        if (trendStrength.equals(TrendStrength.WEAK)) risk += 3;
+        if (liquidity.equals(Liquidity.LOW)) risk += 3;
+        if (risk <= 3) return RiskLevel.LOW;
+        if (risk <= 6) return RiskLevel.MEDIUM;
+        return RiskLevel.HIGH;
     }
 
-    private Integer calculateConfidenceScore(
+    private int calculateConfidenceScore(
             Num rsi, Num shortSMA, Num longSMA,
-            String trendStrength, String volatility,
-            String liquidity, String marketState
+            TrendStrength trendStrength, Volatility volatility,
+            Liquidity liquidity, MarketState marketState
     ) {
         log.trace("AnalysisService | Calculating confidence score");
         int score = cryptoraProperties.tuning().confidence().base();
@@ -413,7 +407,7 @@ public class AnalysisService {
 
         if (rv < cryptoraProperties.rsi().oversold() || rv > cryptoraProperties.rsi().overbought()) {
             score += cryptoraProperties.tuning().confidence().rsiExtreme();
-            if ("LOW".equals(liquidity)) score += cryptoraProperties.tuning().confidence().liquidityLowPenalty();
+            if (liquidity.equals(Liquidity.LOW)) score += cryptoraProperties.tuning().confidence().liquidityLowPenalty();
         } else {
             double span = cryptoraProperties.rsi().overbought() - cryptoraProperties.rsi().oversold();
             double midLow = cryptoraProperties.rsi().oversold() + span * 0.333;
@@ -423,12 +417,12 @@ public class AnalysisService {
             }
         }
 
-        if ("STRONG".equals(trendStrength)) score += cryptoraProperties.tuning().confidence().trendStrong();
-        else if ("WEAK".equals(trendStrength)) score += cryptoraProperties.tuning().confidence().trendWeak();
+        if (trendStrength.equals(TrendStrength.STRONG)) score += cryptoraProperties.tuning().confidence().trendStrong();
+        else if (trendStrength.equals(TrendStrength.WEAK)) score += cryptoraProperties.tuning().confidence().trendWeak();
 
-        if ("LOW".equals(volatility)) score += cryptoraProperties.tuning().confidence().volatilityLowBonus();
-        if ("HIGH".equals(liquidity)) score += cryptoraProperties.tuning().confidence().liquidityHighBonus();
-        else if ("LOW".equals(liquidity)) score += cryptoraProperties.tuning().confidence().liquidityLowPenalty();
+        if (volatility.equals(Volatility.LOW)) score += cryptoraProperties.tuning().confidence().volatilityLowBonus();
+        if (liquidity.equals(Liquidity.HIGH)) score += cryptoraProperties.tuning().confidence().liquidityHighBonus();
+        else if (liquidity.equals(Liquidity.LOW)) score += cryptoraProperties.tuning().confidence().liquidityLowPenalty();
 
         if (smaDiff > 0 && rv > 50) score += cryptoraProperties.tuning().confidence().smaRsiAgreementBonus();
         if (smaDiff < 0 && rv < 50) score += cryptoraProperties.tuning().confidence().smaRsiAgreementBonus();
@@ -440,7 +434,7 @@ public class AnalysisService {
         if (smaDiff < -signalPct &&
                 rv > cryptoraProperties.rsi().overbought()) score += smaRsiConflictPenalty;
 
-        if ("CONSOLIDATION".equals(marketState) || "RANGE".equals(marketState)) {
+        if (marketState.equals(MarketState.CONSOLIDATION) || marketState.equals(MarketState.RANGE)) {
             score -= 10;
         }
 
