@@ -38,9 +38,8 @@ public class CandleService {
             Candle candle = buildCandle(saveSymbol, item);
             toInsert.add(candle);
         }
+        log.debug("CandleService | Attempted to insert bars, symbol: {}", saveSymbol);
         candleRepository.saveAll(toInsert);
-
-        log.debug("CandleService | Attempted to insert {} bars for {}", toInsert.size(), saveSymbol);
     }
 
     public List<Candle> getCandleBySymbol(String symbol) {

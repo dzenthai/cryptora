@@ -22,7 +22,7 @@ cryptora:
   long-time:
     period: 21
   atr:
-    period: 14
+    period: 10
     multiplier:
       strong: 1.2
       weak: 2.0
@@ -41,42 +41,42 @@ cryptora:
     market-state:
       lookback-bars: 50
       compression-pct: 0.004
-      breakout-eps-pct: 0.002
+      breakout-eps-pct: 0.001
     sma:
       diff:
-        trending-pct: 1.0
-        moderate-pct: 0.25
-        strong-pct: 1.2
-        signal-pct: 0.5
+        trending-pct: 0.05
+        moderate-pct: 0.08
+        strong-pct: 0.4
+        signal-pct: 0.08
     score-thresholds:
       strong: 4
       strong-prev: 2
       buy: 2
       buy-prev: 1
-      breakout: 3
+      breakout: 2
+      neutral: 2
     liquidity:
-      local-high: 1.5
+      local-high: 1.4
       global-high: 1.0
-      local-low: 0.7
-      global-low: 0.5
+      local-low: 0.6
+      global-low: 0.4
     volume:
-      min-relative-to-avg: 0.5
+      min-relative-to-avg: 0.4
       window-lookback: 20
     volatility:
       pct:
-        low: 1.0
-        medium: 3.0
+        low: 0.02
+        medium: 0.06
     confidence:
       base: 50
-      rsi-extreme: 15
-      rsi-middle-penalty: -10
+      rsi-extreme: 12
       trend-strong: 15
       trend-weak: -5
-      volatility-low-bonus: 10
+      volatility-low-bonus: 5
       liquidity-high-bonus: 10
-      liquidity-low-penalty: -15
+      liquidity-low-penalty: -10
       sma-rsi-agreement-bonus: 10
-      sma-rsi-conflict-penalty: -15
+      sma-rsi-conflict-penalty: -10
 
 server:
   port: 8088

@@ -1,6 +1,7 @@
 package com.dzenthai.cryptora.repository;
 
 import com.dzenthai.cryptora.model.entity.Candle;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +14,7 @@ import java.sql.Timestamp;
 import java.util.List;
 
 
+@Slf4j
 @Repository
 public class CandleTimescaleRepository implements CandleRepository {
 
@@ -42,6 +44,7 @@ public class CandleTimescaleRepository implements CandleRepository {
 
     @Override
     public List<Candle> findAll() {
+        log.debug("CandleTimescaleRepository | Finding all candles");
         var sql = """
                 SELECT * FROM public.candles
                 ORDER BY close_time
@@ -51,6 +54,7 @@ public class CandleTimescaleRepository implements CandleRepository {
 
     @Override
     public List<Candle> findBySymbolIgnoreCase(String symbol) {
+        log.debug("CandleTimescaleRepository | Finding candles by symbol, Symbol: {}", symbol);
         var sql = """
                 SELECT * FROM public.candles
                 WHERE lower(symbol) = lower(?)
@@ -67,7 +71,7 @@ public class CandleTimescaleRepository implements CandleRepository {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (symbol, close_time) DO NOTHING
                 """;
-        jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
+        var result = jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
             public void setValues(@NotNull PreparedStatement ps, int i) throws SQLException {
                 Candle c = candles.get(i);
@@ -88,5 +92,16 @@ public class CandleTimescaleRepository implements CandleRepository {
                 return candles.size();
             }
         });
+
+        int inserted = 0;
+        for (int r : result) {
+            if (r > 0) inserted++;
+        }
+
+        log.debug(
+                "CandleTimescaleRepository | Saving Candles, Symbol: {}, Inserted: {}",
+                candles.stream().map(Candle::getSymbol),
+                inserted
+        );
     }
 }

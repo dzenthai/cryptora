@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"
 
-  app:
+  cryptora:
     container_name: cryptora
     build: .
     restart: unless-stopped

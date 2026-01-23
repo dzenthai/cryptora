@@ -25,7 +25,6 @@ public class IndicatorMapper {
             double currentVolume,
             double averageVolume,
             boolean volumeOk,
-            int confidenceScore,
             boolean shouldLog
     ) {
 
@@ -41,8 +40,8 @@ public class IndicatorMapper {
         var lowerThreshold = numThrLo.doubleValue();
 
         if (shouldLog) {
-            log.info("IndicatorMapper | Symbol: {}, Price: {}, SMA{}: {}, SMA{}: {}, SMA Diff%: {}, RSI: {}, ATR: {}, ATR%: {}, Upper Threshold: {}, Lower Threshold: {}, Vol: {}/{}, Volume Ok: {}, Confidence Score: {}",
-                    symbol, price, shortTimePeriod, smaShort, longTimePeriod, smaLong, smaDiff, rsi, atr, atrPercent, upperThreshold, lowerThreshold, currentVolume, averageVolume, volumeOk, confidenceScore);
+            log.info("IndicatorMapper | Symbol: {}, Price: {}, SMA{}: {}, SMA{}: {}, SMA Diff%: {}, RSI: {}, ATR: {}, ATR%: {}, Upper Threshold: {}, Lower Threshold: {}, Vol: {}/{}, Volume Ok: {}",
+                    symbol, price, shortTimePeriod, smaShort, longTimePeriod, smaLong, smaDiff, rsi, atr, atrPercent, upperThreshold, lowerThreshold, currentVolume, averageVolume, volumeOk);
         }
 
         return Indicator.builder()

@@ -2,10 +2,9 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 CREATE TABLE public.candles
 (
-    symbol     TEXT        NOT NULL,
-    close_time TIMESTAMPTZ NOT NULL,
-    open_time  TIMESTAMPTZ NOT NULL,
-
+    symbol      TEXT        NOT NULL,
+    close_time  TIMESTAMPTZ NOT NULL,
+    open_time   TIMESTAMPTZ NOT NULL,
     open_price  DOUBLE PRECISION,
     close_price DOUBLE PRECISION,
     high_price  DOUBLE PRECISION,
@@ -13,9 +12,11 @@ CREATE TABLE public.candles
     volume      DOUBLE PRECISION,
     amount      DOUBLE PRECISION,
     trades      BIGINT,
-
     PRIMARY KEY (symbol, close_time)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_candles_symbol_close_time
+    ON public.candles (symbol, close_time);
 
 SELECT create_hypertable(
                'public.candles',

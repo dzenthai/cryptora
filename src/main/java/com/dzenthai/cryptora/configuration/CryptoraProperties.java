@@ -67,7 +67,8 @@ public record CryptoraProperties(
                 int strongPrev,
                 int buy,
                 int buyPrev,
-                int breakout
+                int breakout,
+                int neutral
         ) {}
         public record Liquidity(
                 double localHigh,
@@ -90,7 +91,6 @@ public record CryptoraProperties(
         public record Confidence(
                 int base,
                 int rsiExtreme,
-                int rsiMiddlePenalty,
                 int trendStrong,
                 int trendWeak,
                 int volatilityLowBonus,
