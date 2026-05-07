@@ -1,0 +1,13 @@
+package com.dzenthai.cryptora.model.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
+
+@Builder
+public record Total(
+        @JsonProperty("volume")
+        double volume,
+        @JsonProperty("amount")
+        double amount
+)
+{}

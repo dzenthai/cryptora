@@ -1,0 +1,22 @@
+services:
+  timescaledb:
+    container_name: timescaledb
+    image: timescale/timescaledb:latest-pg16
+    restart: on-failure
+    environment:
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: default
+      TS_TUNE_PARAMETER: on
+    ports:
+      - "5432:5432"
+
+  cryptora:
+    container_name: cryptora
+    build: .
+    restart: unless-stopped
+    env_file: ./.env
+    ports:
+      - '8088:8088'
+    depends_on:
+      - timescaledb
